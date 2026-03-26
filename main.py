@@ -1,29 +1,39 @@
 from fastapi import FastAPI
 from dotenv import load_dotenv
 from pathlib import Path
-from routes import auth,device,shipment
+from back_end.routes import auth
 import os
 import logging
 
-#Load environment variables
+# Load environment variables
 ROOT_DIR = Path(__file__).parent
 load_dotenv(dotenv_path=ROOT_DIR / '.env')
 
 # Create FastAPI app
 app = FastAPI( 
-    title= "SCMXPertLite API",
-    description= "API for SCMXPertLite, a tool for supply chain management and optimization.",
-    version= "1.0.0",   
+    title="SCMXPertLite API",
+    description="API for SCMXPertLite, a tool for supply chain management and optimization.",
+    version="1.0.0",   
 )
 
-# include routes
-# app.include_router(auth.router)
-# app.include_router(device.router)
-# app.include_router(shipment.router)
+# Include routes
+app.include_router(auth.router)
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to SCMXPertLite API!"}
+    return {
+        "message": "Welcome to SCMXPertLite API!",
+        "docs": "/docs",
+        "health": "/api/health"
+    }
+
+@app.get("/api/health")
+def read_health():
+    return {
+        "status": "healthy",
+        "service": "SCMXPertLite API",
+        "version": "1.0.0"
+    }
 
 logging.basicConfig(
     level=logging.INFO,
