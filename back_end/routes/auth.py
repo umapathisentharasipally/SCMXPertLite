@@ -6,10 +6,14 @@ from datetime import datetime, timedelta, timezone
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import uuid
+import jwt
+import bcrypt
 
 # This is what main.py looks for
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
+# Jwt configuration
+SECRET_KEY = os.environ.get("JWT_SECRET_KEY", )
 def get_db():
     # FIXED: Cleaned up the double AsyncIOMotorClient call
     mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
