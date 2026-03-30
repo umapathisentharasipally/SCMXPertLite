@@ -13,7 +13,10 @@ import bcrypt
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 # Jwt configuration
-SECRET_KEY = os.environ.get("JWT_SECRET_KEY", )
+SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+
 def get_db():
     # FIXED: Cleaned up the double AsyncIOMotorClient call
     mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
@@ -36,6 +39,17 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt """
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
+
+
+
+
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def signup(request: SignupReuest):
