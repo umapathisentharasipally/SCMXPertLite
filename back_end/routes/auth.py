@@ -40,6 +40,9 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     user: UserResponse
 
+class LoginRequest(BaseModel):
+    email:EmailStr
+    password:str
 
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt """
@@ -47,8 +50,8 @@ def hash_password(password: str) -> str:
     hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
     return hashed.decode('utf-8')
 
-
-
+def verify_password(plain_password:str, hashed_password:str) ->bool:
+    return bcrypt.checkpw(plain_password.encode('utf-8'),hashed_password.encode('utf-8'))
 
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -87,3 +90,6 @@ async def signup(request: SignupReuest):
         access_token=access_token,
         user=user_response
     )
+
+#@router.post("/login", response_model=TokenResponse)
+#async def login(request: LoginRequest):

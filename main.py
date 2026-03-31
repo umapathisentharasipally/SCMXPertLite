@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from dotenv import load_dotenv
 from pathlib import Path
-from back_end.routes import auth
+from back_end.routes import auth 
+from back_end import run
 import os
 import logging
 
@@ -18,6 +19,7 @@ app = FastAPI(
 
 # Include routes
 app.include_router(auth.router)
+app.include_router(run.router)
 
 @app.get("/")
 def read_root():
