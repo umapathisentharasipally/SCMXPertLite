@@ -53,6 +53,19 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password:str, hashed_password:str) ->bool:
     return bcrypt.checkpw(plain_password.encode('utf-8'),hashed_password.encode('utf-8'))
 
+def create_access_token(data:dict, expires_delta:Optional[timedelta] =None) -> str:
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc)+ timedelta(minutes = ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({
+        "exp": expire,
+        "iat": datetime.now(timezone.utc)   # issued at
+    })
+    encode_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encode_jwt
+
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def signup(request: SignupReuest):
@@ -90,6 +103,4 @@ async def signup(request: SignupReuest):
         access_token=access_token,
         user=user_response
     )
-
-#@router.post("/login", response_model=TokenResponse)
-#async def login(request: LoginRequest):
+   
