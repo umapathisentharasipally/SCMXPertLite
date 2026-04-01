@@ -1,48 +1,34 @@
-from fastapi import APIRouter, HTTPException, status
-import os 
+from fastapi import APIRouter, HTTPException, status, Depends
+import os
 import jwt
-from datetime import datetime, timedelta
-from motor.motor_asyncio import AsyncIOMotorClient 
-from pydantic import BaseModel, EmailStr, Field
-from back_end.routes.auth import get_db, verify_password
+from typing import Optional
+from datetime import datetime, timedelta, timezone
+import bcrypt
 
-router = APIRouter(prefix="/api/login", tags=["Login"])
+user_id = str(input("Enter user ID: "))
+user_email = str(input("Enter user email: "))
 
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-class LoginRequest(BaseModel):
-        email: EmailStr
-        password: str
-class UserResponse(BaseModel):
-    id: str
-    full_name: str
-    email: str
-    created_at: str
+SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "JWT_SECRET_KEY")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-@router.post("/login",response_model=TokenResponse, status_code = status.HTTP_202_ACCEPTED)
-async def login(email: EmailStr, password: str):
-    """Authenticate user """
-    db = get_db()
-    user = await db.users.find_one({"email": email}, {"_id": 0})
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+def create_access_token(data:dict, expires_delta:Optional[timedelta] =None) -> str:
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.now(timezone.utc)+ timedelta(minutes = ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({
+        "exp": expire,
+        "iat": datetime.now(timezone.utc)   # issued at
+    })
+    encode_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encode_jwt
 
-        )
-    if not verify_password(password, user["password_hash"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
-        )
-    user_response = UserResponse(
-        id=user["id"],
-        full_name=user["full_name"],
-        email=user["email"],
-        created_at=user["created_at"]
-    )
-    return TokenResponse(
-        access_token=user_response.id,
-        token_type="bearer"
-    )
+
+token = create_access_token({
+    "sub": user_id,
+    "email": user_email
+})
+
+print("Generated JWT Token:", token)
