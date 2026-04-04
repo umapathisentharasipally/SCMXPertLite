@@ -11,6 +11,7 @@ import bcrypt
 
 # This is what main.py looks for
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+security = HTTPBearer()  # For JWT authentication   
 
 # Jwt configuration
 SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
@@ -66,6 +67,36 @@ def create_access_token(data:dict, expires_delta:Optional[timedelta] =None) -> s
     encode_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encode_jwt
 
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends (security)):
+    """Dependency to get current authenticated user"""
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials"
+            )
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired"
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
+    
+    db = get_db()
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+    return user
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def signup(request: SignupReuest):
@@ -86,6 +117,7 @@ async def signup(request: SignupReuest):
         "id": user_id,
         "full_name": request.full_name,
         "email": request.email,
+        "hashed_password": hash_password(request.password),
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.users.insert_one(user_docs)
@@ -103,4 +135,49 @@ async def signup(request: SignupReuest):
         access_token=access_token,
         user=user_response
     )
-   
+
+@router.post("/login", response_model=TokenResponse)
+async def login(request: LoginRequest):
+    """Authenticate user and return JWT token"""
+    db = get_db()
+    
+    # Find user by email
+    user = await db.users.find_one({"email": request.email}, {"_id": 0})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+    
+    # Verify password
+    if not verify_password(request.password, user["hashed_password"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+    
+    # Create access token
+    access_token = create_access_token(data={"sub": user["id"]})
+    
+    user_response = UserResponse(
+        id=user["id"],
+        full_name=user["full_name"],
+        email=user["email"],
+
+        created_at=user["created_at"]
+    )
+    
+    return TokenResponse(
+        access_token=access_token,
+        user=user_response
+    )
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(current_user: dict = Depends(get_current_user)):
+    """Get current authenticated user information"""
+    return UserResponse(
+        id=current_user["id"],
+        full_name=current_user["full_name"],
+        email=current_user["email"],
+        created_at=current_user["created_at"]
+    )

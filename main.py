@@ -19,7 +19,7 @@ app = FastAPI(
 
 # Include routes
 app.include_router(auth.router)
-app.include_router(run.router)
+#app.include_router(run.router)
 
 @app.get("/")
 def read_root():
