@@ -11,6 +11,7 @@ import bcrypt
 
 # This is what main.py looks for
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+security = HTTPBearer()  # For JWT authentication   
 
 # Jwt configuration
 SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
@@ -66,7 +67,7 @@ def create_access_token(data:dict, expires_delta:Optional[timedelta] =None) -> s
     encode_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encode_jwt
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends (security)):
     """Dependency to get current authenticated user"""
     token = credentials.credentials
     try:
@@ -116,6 +117,7 @@ async def signup(request: SignupReuest):
         "id": user_id,
         "full_name": request.full_name,
         "email": request.email,
+        "hashed_password": hash_password(request.password),
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.users.insert_one(user_docs)
@@ -148,7 +150,7 @@ async def login(request: LoginRequest):
         )
     
     # Verify password
-    if not verify_password(request.password, user["password_hash"]):
+    if not verify_password(request.password, user["hashed_password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
@@ -161,6 +163,7 @@ async def login(request: LoginRequest):
         id=user["id"],
         full_name=user["full_name"],
         email=user["email"],
+
         created_at=user["created_at"]
     )
     
