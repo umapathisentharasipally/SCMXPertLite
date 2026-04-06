@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional
 from datetime import datetime, timedelta, timezone
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import re
 import uuid
 import jwt
 import bcrypt
@@ -15,20 +16,33 @@ security = HTTPBearer()  # For JWT authentication
 
 # Jwt configuration
 SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+if not SECRET_KEY:
+    raise RuntimeError("JWT_SECRET_KEY environment variable must be set")
+ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS512")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
+JWT_ISSUER = os.environ.get("JWT_ISSUER", "scmxpert-lite")
+PASSWORD_REGEX = re.compile(
+    r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};:'\"\\|,.<>/?]).{8,}$"
+)
 
 def get_db():
-    # FIXED: Cleaned up the double AsyncIOMotorClient call
     mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
     client = AsyncIOMotorClient(mongo_url)
     db_name = os.environ.get("DB_NAME", "scmxpert_db")
     return client[db_name]
 
-class SignupReuest(BaseModel):
+class SignupRequest(BaseModel):
     full_name: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=8)
+
+    @validator("password")
+    def validate_password(cls, password: str) -> str:
+        if not PASSWORD_REGEX.match(password):
+            raise ValueError(
+                "Password must be at least 8 characters long and include uppercase, lowercase, digit, and special character"
+            )
+        return password
 
 class UserResponse(BaseModel):
     id: str
@@ -46,94 +60,113 @@ class LoginRequest(BaseModel):
     password:str
 
 def hash_password(password: str) -> str:
-    """Hash a password using bcrypt """
-    salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
-    return hashed.decode('utf-8')
+    """Hash a password using bcrypt."""
+    salt = bcrypt.gensalt(rounds=12)
+    hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
+    return hashed.decode("utf-8")
 
-def verify_password(plain_password:str, hashed_password:str) ->bool:
-    return bcrypt.checkpw(plain_password.encode('utf-8'),hashed_password.encode('utf-8'))
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
-def create_access_token(data:dict, expires_delta:Optional[timedelta] =None) -> str:
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
+    now = datetime.now(timezone.utc)
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = now + expires_delta
     else:
-        expire = datetime.now(timezone.utc)+ timedelta(minutes = ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({
-        "exp": expire,
-        "iat": datetime.now(timezone.utc)   # issued at
-    })
-    encode_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encode_jwt
+        expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends (security)):
-    """Dependency to get current authenticated user"""
+    to_encode.update(
+        {
+            "iss": JWT_ISSUER,
+            "sub": data.get("sub"),
+            "iat": now,
+            "nbf": now,
+            "exp": expire,
+            "jti": str(uuid.uuid4()),
+        }
+    )
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Dependency to get current authenticated user."""
     token = credentials.credentials
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+            issuer=JWT_ISSUER,
+            options={"require": ["exp", "iat", "nbf", "sub", "iss"]},
+        )
         user_id: str = payload.get("sub")
-        if user_id is None:
+        if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials"
+                detail="Invalid authentication credentials",
             )
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired"
+            detail="Token has expired",
         )
     except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
+            detail="Invalid token",
         )
-    
+
     db = get_db()
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
+            detail="User not found",
         )
     return user
 
+async def admin_required(user: dict = Depends(get_current_user)):
+    """
+    A dependency that ensures the current user has the 'admin' role.
+    """
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return user
+
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def signup(request: SignupReuest):
-    """Register a new user"""
+async def signup(request: SignupRequest):
+    """Register a new user."""
     db = get_db()
 
-    # check if user already exists
     existing_user = await db.users.find_one({"email": request.email})
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            detail="Email already registered",
         )
-    
-    # create new user
+
     user_id = str(uuid.uuid4())
     user_docs = {
         "id": user_id,
         "full_name": request.full_name,
         "email": request.email,
         "hashed_password": hash_password(request.password),
-        "created_at": datetime.now(timezone.utc).isoformat()
+        "role": "user",
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.users.insert_one(user_docs)
 
-    # Create access token 
-    access_token = str(uuid.uuid4())
+    access_token = create_access_token(data={"sub": user_id, "role": "user"})
     user_response = UserResponse(
         id=user_id,
         full_name=request.full_name,
         email=request.email,
-        created_at=user_docs["created_at"]
+        created_at=user_docs["created_at"],
     )
-    
+
     return TokenResponse(
         access_token=access_token,
-        user=user_response
+        user=user_response,
     )
 
 @router.post("/login", response_model=TokenResponse)
@@ -157,7 +190,9 @@ async def login(request: LoginRequest):
         )
     
     # Create access token
-    access_token = create_access_token(data={"sub": user["id"]})
+    access_token = create_access_token(
+        data={"sub": user["id"], "role": user.get("role", "user")}
+    )
     
     user_response = UserResponse(
         id=user["id"],
