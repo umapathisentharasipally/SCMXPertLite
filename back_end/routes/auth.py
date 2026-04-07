@@ -1,15 +1,22 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional
 from datetime import datetime, timedelta, timezone
-from motor.motor_asyncio import AsyncIOMotorClient
-import os
-import re
-import uuid
-import jwt
 import bcrypt
+import jwt
+import uuid
+import re
+import os
 
+from back_end.models.auth_models import (
+    SignupRequest,
+    UserResponse,
+    TokenResponse,
+    LoginRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+)
+from back_end.db.database import get_db
 # This is what main.py looks for
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 security = HTTPBearer()  # For JWT authentication   
@@ -21,43 +28,11 @@ if not SECRET_KEY:
 ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS512")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
 JWT_ISSUER = os.environ.get("JWT_ISSUER", "scmxpert-lite")
+
+
 PASSWORD_REGEX = re.compile(
     r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};:'\"\\|,.<>/?]).{8,}$"
 )
-
-def get_db():
-    mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
-    client = AsyncIOMotorClient(mongo_url)
-    db_name = os.environ.get("DB_NAME", "scmxpert_db")
-    return client[db_name]
-
-class SignupRequest(BaseModel):
-    full_name: str = Field(..., min_length=3, max_length=50)
-    email: EmailStr
-    password: str = Field(..., min_length=8)
-
-    @validator("password")
-    def validate_password(cls, password: str) -> str:
-        if not PASSWORD_REGEX.match(password):
-            raise ValueError(
-                "Password must be at least 8 characters long and include uppercase, lowercase, digit, and special character"
-            )
-        return password
-
-class UserResponse(BaseModel):
-    id: str
-    full_name: str
-    email: str
-    created_at: str
-
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    user: UserResponse
-
-class LoginRequest(BaseModel):
-    email:EmailStr
-    password:str
 
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt."""
@@ -87,6 +62,21 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
             "jti": str(uuid.uuid4()),
         }
     )
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def create_reset_token(email: str) -> str:
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(hours=1)  # Reset token expires in 1 hour
+
+    to_encode = {
+        "iss": JWT_ISSUER,
+        "sub": email,
+        "iat": now,
+        "nbf": now,
+        "exp": expire,
+        "jti": str(uuid.uuid4()),
+        "type": "reset",
+    }
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -212,6 +202,13 @@ async def login(request: LoginRequest):
             detail="Invalid email or password"
         )
     
+    # Check if user has hashed_password (for backward compatibility)
+    if "hashed_password" not in user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account needs to be re-registered. Please sign up again."
+        )
+    
     # Verify password
     if not verify_password(request.password, user["hashed_password"]):
         raise HTTPException(
@@ -246,6 +243,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         full_name=current_user["full_name"],
         email=current_user["email"],
         created_at=current_user["created_at"]
+<<<<<<< HEAD
 =======
    
 @router.post("/login", response_model=TokenResponse)
@@ -283,3 +281,54 @@ async def login(request: LoginRequest):
         user=user_response
 >>>>>>> fccef28 (login)
     )
+=======
+    )
+
+@router.post("/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest):
+    """Request a password reset token (send to email in production)"""
+    db = get_db()
+    user = await db.users.find_one({"email": request.email})
+    if not user:
+        # Don't reveal if email exists
+        return {"message": "If the email exists, a reset link has been sent."}
+
+    reset_token = create_reset_token(request.email)
+    # In production, send email with reset_token
+    # For now, just return it (remove in production)
+    print(f"Reset token for {request.email}: {reset_token}")
+
+    return {"message": "If the email exists, a reset link has been sent."}
+
+@router.post("/reset-password")
+async def reset_password(request: ResetPasswordRequest):
+    """Reset password using reset token"""
+    try:
+        payload = jwt.decode(
+            request.token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+            issuer=JWT_ISSUER,
+            options={"require": ["exp", "iat", "nbf", "sub", "type"]},
+        )
+        if payload.get("type") != "reset":
+            raise jwt.InvalidTokenError
+        email = payload.get("sub")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=400, detail="Reset token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=400, detail="Invalid reset token")
+
+    db = get_db()
+    user = await db.users.find_one({"email": email})
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid reset token")
+
+    hashed_password = hash_password(request.new_password)
+    await db.users.update_one(
+        {"email": email},
+        {"$set": {"hashed_password": hashed_password}}
+    )
+
+    return {"message": "Password has been reset successfully"}
+>>>>>>> 1a2806d (adding email verification and forgrt password)
