@@ -30,6 +30,7 @@ class SignupRequest(BaseModel):
     full_name: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
     password: str = Field(..., min_length=8)
+    recaptcha_token: str = Field(..., min_length=1)
 
     @validator("email")
     def validate_email(cls, email: str) -> str:
@@ -59,6 +60,7 @@ class TokenResponse(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    recaptcha_token: str = Field(..., min_length=1)
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
