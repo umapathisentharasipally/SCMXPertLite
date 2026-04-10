@@ -187,10 +187,7 @@ async def admin_required(user: dict = Depends(get_current_user)):
     return user
 
 
-<<<<<<< HEAD
 
-=======
->>>>>>> 737a90a212a08f1509dd0c6dd78d5513a2b2dfbf
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def signup(request: SignupRequest):
@@ -276,11 +273,7 @@ async def login(request: LoginRequest):
         access_token=access_token,
         user=user_response
     )
-<<<<<<< HEAD
-=======
 
-
->>>>>>> 737a90a212a08f1509dd0c6dd78d5513a2b2dfbf
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: dict = Depends(get_current_user)):
@@ -291,15 +284,8 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         email=current_user["email"],
         created_at=current_user["created_at"]
     )
-<<<<<<< HEAD
-   
-=======
 
 
-
-
-
->>>>>>> 737a90a212a08f1509dd0c6dd78d5513a2b2dfbf
 @router.post("/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
     """Request a password reset token (send to email in production)"""
@@ -349,9 +335,6 @@ async def reset_password(request: ResetPasswordRequest):
         {"$set": {"hashed_password": hashed_password}}
     )
 
-<<<<<<< HEAD
-    return {"message": "Password has been reset successfully"}
 
-=======
     return {"message": "Password has been reset successfully"}
->>>>>>> 737a90a212a08f1509dd0c6dd78d5513a2b2dfbf
+ 
