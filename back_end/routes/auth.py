@@ -9,6 +9,8 @@ import re
 import os
 import httpx
 
+from back_end.db.database import get_db
+
 from back_end.models.auth_models import (
     SignupRequest,
     UserResponse,
@@ -17,7 +19,7 @@ from back_end.models.auth_models import (
     ForgotPasswordRequest,
     ResetPasswordRequest,
 )
-from back_end.db.database import get_db
+
 
 # This is what main.py looks for
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -39,14 +41,19 @@ PASSWORD_REGEX = re.compile(
     r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};:\'"\\|,.<>/?]).{8,}$'
 )
 
+
+
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt."""
     salt = bcrypt.gensalt(rounds=12)
     hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
     return hashed.decode("utf-8")
 
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
@@ -68,6 +75,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     )
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+
+
 def create_reset_token(email: str) -> str:
     now = datetime.now(timezone.utc)
     expire = now + timedelta(hours=1)  # Reset token expires in 1 hour
@@ -82,6 +91,9 @@ def create_reset_token(email: str) -> str:
         "type": "reset",
     }
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+
 
 async def verify_recaptcha_token(recaptcha_token: str) -> None:
     if not RECAPTCHA_SECRET_KEY:
@@ -122,6 +134,9 @@ async def verify_recaptcha_token(recaptcha_token: str) -> None:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="reCAPTCHA verification failed due to low score",
             )
+        
+
+
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Dependency to get current authenticated user."""
@@ -160,6 +175,9 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         )
     return user
 
+
+
+
 async def admin_required(user: dict = Depends(get_current_user)):
     """
     A dependency that ensures the current user has the 'admin' role.
@@ -167,6 +185,8 @@ async def admin_required(user: dict = Depends(get_current_user)):
     if user.get("role") != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return user
+
+
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def signup(request: SignupRequest):
@@ -204,6 +224,10 @@ async def signup(request: SignupRequest):
         access_token=access_token,
         user=user_response,
     )
+
+
+
+
 @router.post("/login", response_model=TokenResponse)
 async def login(request: LoginRequest):
     """Authenticate user and return JWT token"""
@@ -249,6 +273,8 @@ async def login(request: LoginRequest):
         user=user_response
     )
 
+
+
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: dict = Depends(get_current_user)):
     """Get current authenticated user information"""
@@ -258,6 +284,10 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         email=current_user["email"],
         created_at=current_user["created_at"]
     )
+
+
+
+
 
 @router.post("/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
@@ -274,6 +304,9 @@ async def forgot_password(request: ForgotPasswordRequest):
     print(f"Reset token for {request.email}: {reset_token}")
 
     return {"message": "If the email exists, a reset link has been sent."}
+
+
+
 
 @router.post("/reset-password")
 async def reset_password(request: ResetPasswordRequest):
