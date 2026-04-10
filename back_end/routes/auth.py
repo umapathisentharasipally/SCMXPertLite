@@ -7,6 +7,9 @@ import jwt
 import uuid
 import re
 import os
+import httpx
+
+from back_end.db.database import get_db
 
 from back_end.models.auth_models import (
     SignupRequest,
@@ -16,23 +19,29 @@ from back_end.models.auth_models import (
     ForgotPasswordRequest,
     ResetPasswordRequest,
 )
-from back_end.db.database import get_db
+
+
 # This is what main.py looks for
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 security = HTTPBearer()  # For JWT authentication   
 
 # Jwt configuration
-SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
+SECRET_KEY = os.environ.get("JWT_SECRET_KEY","JWT_SECRET_KEY")
+RECAPTCHA_SECRET_KEY = os.environ.get("RECAPTCHA_SECRET_KEY")
+RECAPTCHA_VERIFY_URL = os.environ.get("RECAPTCHA_VERIFY_URL")
+
 if not SECRET_KEY:
     raise RuntimeError("JWT_SECRET_KEY environment variable must be set")
-ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS512")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
+ALGORITHM = os.environ.get("JWT_ALGORITHM", "JWT_ALGORITHM")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES"))
 JWT_ISSUER = os.environ.get("JWT_ISSUER", "scmxpert-lite")
 
 
 PASSWORD_REGEX = re.compile(
-    r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};:'\"\\|,.<>/?]).{8,}$"
+    r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};:\'"\\|,.<>/?]).{8,}$'
 )
+
+
 
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt."""
@@ -40,8 +49,11 @@ def hash_password(password: str) -> str:
     hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
     return hashed.decode("utf-8")
 
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
@@ -63,6 +75,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     )
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+
+
 def create_reset_token(email: str) -> str:
     now = datetime.now(timezone.utc)
     expire = now + timedelta(hours=1)  # Reset token expires in 1 hour
@@ -77,6 +91,52 @@ def create_reset_token(email: str) -> str:
         "type": "reset",
     }
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+
+
+async def verify_recaptcha_token(recaptcha_token: str) -> None:
+    if not RECAPTCHA_SECRET_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="reCAPTCHA secret key is not configured",
+        )
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                RECAPTCHA_VERIFY_URL,
+                data={"secret": RECAPTCHA_SECRET_KEY, "response": recaptcha_token},
+                timeout=10.0,
+            )
+            response.raise_for_status()
+            result = response.json()
+    except httpx.HTTPError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to verify reCAPTCHA token",
+        )
+
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid reCAPTCHA token",
+        )
+
+    score = result.get("score")
+    if score is not None:
+        try:
+            threshold = float(os.environ.get("RECAPTCHA_SCORE_THRESHOLD", "0.5"))
+        except ValueError:
+            threshold = 0.5
+        if score < threshold:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="reCAPTCHA verification failed due to low score",
+            )
+        
+
+
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Dependency to get current authenticated user."""
@@ -115,6 +175,9 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         )
     return user
 
+
+
+
 async def admin_required(user: dict = Depends(get_current_user)):
     """
     A dependency that ensures the current user has the 'admin' role.
@@ -124,11 +187,15 @@ async def admin_required(user: dict = Depends(get_current_user)):
     return user
 
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 737a90a212a08f1509dd0c6dd78d5513a2b2dfbf
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def signup(request: SignupRequest):
     """Register a new user."""
+    await verify_recaptcha_token(request.recaptcha_token)
     db = get_db()
 
     existing_user = await db.users.find_one({"email": request.email})
@@ -162,9 +229,13 @@ async def signup(request: SignupRequest):
         user=user_response,
     )
 
+
+
+
 @router.post("/login", response_model=TokenResponse)
 async def login(request: LoginRequest):
     """Authenticate user and return JWT token"""
+    await verify_recaptcha_token(request.recaptcha_token)
     db = get_db()
     
     # Find user by email
@@ -198,7 +269,6 @@ async def login(request: LoginRequest):
         id=user["id"],
         full_name=user["full_name"],
         email=user["email"],
-
         created_at=user["created_at"]
     )
     
@@ -206,6 +276,11 @@ async def login(request: LoginRequest):
         access_token=access_token,
         user=user_response
     )
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 737a90a212a08f1509dd0c6dd78d5513a2b2dfbf
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: dict = Depends(get_current_user)):
@@ -216,7 +291,15 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         email=current_user["email"],
         created_at=current_user["created_at"]
     )
+<<<<<<< HEAD
    
+=======
+
+
+
+
+
+>>>>>>> 737a90a212a08f1509dd0c6dd78d5513a2b2dfbf
 @router.post("/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
     """Request a password reset token (send to email in production)"""
@@ -232,6 +315,9 @@ async def forgot_password(request: ForgotPasswordRequest):
     print(f"Reset token for {request.email}: {reset_token}")
 
     return {"message": "If the email exists, a reset link has been sent."}
+
+
+
 
 @router.post("/reset-password")
 async def reset_password(request: ResetPasswordRequest):
@@ -263,5 +349,9 @@ async def reset_password(request: ResetPasswordRequest):
         {"$set": {"hashed_password": hashed_password}}
     )
 
+<<<<<<< HEAD
     return {"message": "Password has been reset successfully"}
 
+=======
+    return {"message": "Password has been reset successfully"}
+>>>>>>> 737a90a212a08f1509dd0c6dd78d5513a2b2dfbf
