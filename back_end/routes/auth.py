@@ -51,7 +51,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     else:
         expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
-<<<<<<< HEAD
     to_encode.update(
         {
             "iss": JWT_ISSUER,
@@ -95,46 +94,23 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication credentials",
-=======
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Dependency to get current authenticated user"""
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials"
->>>>>>> fccef28 (login)
             )
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-<<<<<<< HEAD
             detail="Token has expired",
-=======
-            detail="Token has expired"
->>>>>>> fccef28 (login)
         )
     except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-<<<<<<< HEAD
             detail="Invalid token",
         )
 
-=======
-            detail="Invalid token"
-        )
-    
->>>>>>> fccef28 (login)
     db = get_db()
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-<<<<<<< HEAD
             detail="User not found",
         )
     return user
@@ -146,12 +122,9 @@ async def admin_required(user: dict = Depends(get_current_user)):
     if user.get("role") != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return user
-=======
-            detail="User not found"
-        )
-    return user
 
->>>>>>> fccef28 (login)
+
+
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def signup(request: SignupRequest):
@@ -202,15 +175,15 @@ async def login(request: LoginRequest):
             detail="Invalid email or password"
         )
     
-    # Check if user has hashed_password (for backward compatibility)
-    if "hashed_password" not in user:
+    password_hash = user.get("hashed_password") or user.get("password_hash")
+    if not password_hash:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Account needs to be re-registered. Please sign up again."
         )
-    
+
     # Verify password
-    if not verify_password(request.password, user["hashed_password"]):
+    if not verify_password(request.password, password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
@@ -233,7 +206,6 @@ async def login(request: LoginRequest):
         access_token=access_token,
         user=user_response
     )
-<<<<<<< HEAD
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: dict = Depends(get_current_user)):
@@ -243,47 +215,8 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         full_name=current_user["full_name"],
         email=current_user["email"],
         created_at=current_user["created_at"]
-<<<<<<< HEAD
-=======
+    )
    
-@router.post("/login", response_model=TokenResponse)
-async def login(request: LoginRequest):
-    """Authenticate user and return JWT token"""
-    db = get_db()
-    
-    # Find user by email
-    user = await db.users.find_one({"email": request.email}, {"_id": 0})
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
-        )
-    
-    # Verify password
-    if not verify_password(request.password, user["password_hash"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
-        )
-    
-    # Create access token
-    access_token = create_access_token(data={"sub": user["id"]})
-    
-    user_response = UserResponse(
-        id=user["id"],
-        full_name=user["full_name"],
-        email=user["email"],
-        created_at=user["created_at"]
-    )
-    
-    return TokenResponse(
-        access_token=access_token,
-        user=user_response
->>>>>>> fccef28 (login)
-    )
-=======
-    )
-
 @router.post("/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
     """Request a password reset token (send to email in production)"""
@@ -331,4 +264,4 @@ async def reset_password(request: ResetPasswordRequest):
     )
 
     return {"message": "Password has been reset successfully"}
->>>>>>> 1a2806d (adding email verification and forgrt password)
+
