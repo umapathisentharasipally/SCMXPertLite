@@ -101,3 +101,22 @@ class DeviceModel:
             print(f"Error retrieving sensor data for device ID {device_id}: {e}")
             return []
         
+    async def get_latest_sensor_data_by_device_id(self, device_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves the latest sensor data for a specific device ID.
+        Args:
+            device_id (int): The ID of the device to retrieve data for.
+        Returns:
+
+            Optional[Dict[str, Any]]: A dictionary representing the latest sensor data for the device,
+                                      or None if no data is found or an error occurs.     """        
+        try:
+            data = await self.collection.find_one({"Device_Id": device_id}, sort=[("timestamp", -1)])
+            if data:
+                data['_id'] = str(data['_id'])
+            return data
+        except Exception as e:
+            print(f"Error retrieving latest sensor data for device ID {device_id}: {e}")
+            return None
+        
+    
