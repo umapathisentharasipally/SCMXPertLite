@@ -42,13 +42,11 @@ PASSWORD_REGEX = re.compile(
 )
 
 
-
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt."""
     salt = bcrypt.gensalt(rounds=12)
     hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
     return hashed.decode("utf-8")
-
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -76,7 +74,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-
 def create_reset_token(email: str) -> str:
     now = datetime.now(timezone.utc)
     expire = now + timedelta(hours=1)  # Reset token expires in 1 hour
@@ -91,8 +88,6 @@ def create_reset_token(email: str) -> str:
         "type": "reset",
     }
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-
 
 
 async def verify_recaptcha_token(recaptcha_token: str) -> None:
@@ -136,8 +131,6 @@ async def verify_recaptcha_token(recaptcha_token: str) -> None:
             )
         
 
-
-
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Dependency to get current authenticated user."""
     token = credentials.credentials
@@ -176,8 +169,6 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     return user
 
 
-
-
 async def admin_required(user: dict = Depends(get_current_user)):
     """
     A dependency that ensures the current user has the 'admin' role.
@@ -185,9 +176,6 @@ async def admin_required(user: dict = Depends(get_current_user)):
     if user.get("role") != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return user
-
-
-
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def signup(request: SignupRequest):
@@ -225,8 +213,6 @@ async def signup(request: SignupRequest):
         access_token=access_token,
         user=user_response,
     )
-
-
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -301,8 +287,6 @@ async def forgot_password(request: ForgotPasswordRequest):
     print(f"Reset token for {request.email}: {reset_token}")
 
     return {"message": "If the email exists, a reset link has been sent."}
-
-
 
 
 @router.post("/reset-password")
