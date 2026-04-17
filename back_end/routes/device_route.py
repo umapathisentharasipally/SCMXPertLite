@@ -18,6 +18,9 @@ async def get_all_sensor_data(admin: dict = Depends(admin_required)):
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to retrieve device data: {e}")
 
+
+
+
 @router.get("/{device_id}/latest_sensor_data", response_model=Optional[Dict[str, Any]])
 async def get_latest_device_sensor_data(
     device_id: int,
@@ -37,6 +40,9 @@ async def get_latest_device_sensor_data(
         raise he # Re-raise HTTP exceptions
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to retrieve latest device data: {e}")
+    
+
+
 
 @router.get("/{device_id}/sensor_history", response_model=List[Dict[str, Any]])
 async def get_device_sensor_history(
