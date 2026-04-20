@@ -3,9 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
-import uuid
 import os
-import random
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 
@@ -39,13 +37,14 @@ class SensorData(BaseModel):
 
 class DeviceModel:
     """
-    Manages database operations for sensor data in the "sensor_data" MongoDB collection.
+    Manages database operations for device data in the MongoDB collection.
     """
     def __init__(self):
         # Changed: Assign the directly imported 'db' from core.mongo
         self.db = get_db()
-        # Use the collection name as defined in mongo.py
-        self.collection = self.db["sensor_data"] #
+        # Use the collection name from environment variable
+        coll_devices = os.getenv('COLL_DEVICES', 'devices')
+        self.collection = self.db[coll_devices]
         # Optional: Create an index for efficient queries on Device_ID and timestamp
         self.collection.create_index([("Device_ID", 1), ("timestamp", -1)])
 
