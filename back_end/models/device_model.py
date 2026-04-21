@@ -12,7 +12,13 @@ from bson import ObjectId
 
 
 from  back_end.routes.auth import get_current_user  
-from back_end.db.database import get_db
+from back_end.db.database import (
+    get_db,
+    sensor_data_collection,
+    find_one,
+    find_many,
+    insert_one,
+)
 router = APIRouter(prefix="/api/device", tags=["Device"])
 
 
@@ -42,12 +48,7 @@ class DeviceModel:
     Manages database operations for sensor data in the "sensor_data" MongoDB collection.
     """
     def __init__(self):
-        # Changed: Assign the directly imported 'db' from core.mongo
-        self.db = get_db()
-        # Use the collection name as defined in mongo.py
-        self.collection = self.db["sensor_data"] #
-        # Optional: Create an index for efficient queries on Device_ID and timestamp
-        self.collection.create_index([("Device_ID", 1), ("timestamp", -1)])
+        self.collection = sensor_data_collection
 
     async def create_sensor_reading(self, data: Dict[str, Any]) -> Optional[str]:
         """
@@ -61,9 +62,9 @@ class DeviceModel:
                            or None if an error occurred.
         """
         try:
-            result = await self.collection.insert_one(data)
-            print(f"Inserted sensor data with ID: {result.inserted_id}")
-            return str(result.inserted_id)
+            result = await insert_one(self.collection, data)
+            print(f"Inserted sensor data with ID: {result}")
+            return result
         except Exception as e:
             print(f"Error inserting sensor data: {e}")
             return None
@@ -75,8 +76,7 @@ class DeviceModel:
             List[Dict[str, Any]]: A list of dictionaries representing all sensor data readings.
         """
         try:
-            cursor = self.collection.find({})
-            data = await cursor.to_list(length=None) 
+            data = await find_many(self.collection)
             
             for items in data:
                 if "_id" in items:
@@ -93,7 +93,11 @@ class DeviceModel:
         Args:
             device_id (int): The ID of the device to retrieve data for."""
         try:
-            data = await self.collection.find({"Device_Id": device_id}).sort("timestamp", -1).to_list(None)
+            data = await find_many(
+                self.collection, 
+                {"Device_Id": device_id}, 
+                sort=[("timestamp", -1)]
+            )
             for items in data:
                 items['_id'] = str(items['_id'])
             return data
@@ -111,7 +115,7 @@ class DeviceModel:
             Optional[Dict[str, Any]]: A dictionary representing the latest sensor data for the device,
                                       or None if no data is found or an error occurs.     """        
         try:
-            data = await self.collection.find_one({"Device_Id": device_id}, sort=[("timestamp", -1)])
+            data = await find_one(self.collection, {"Device_Id": device_id})
             if data:
                 data['_id'] = str(data['_id'])
             return data
