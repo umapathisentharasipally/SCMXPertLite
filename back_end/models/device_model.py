@@ -10,6 +10,16 @@ from bson import ObjectId
 
 from back_end.routes.auth import get_current_user  
 from back_end.db.database import sensor_data_collection, insert_one, find_many, find_one
+
+
+from  back_end.routes.auth import get_current_user  
+from back_end.db.database import (
+    get_db,
+    sensor_data_collection,
+    find_one,
+    find_many,
+    insert_one,
+)
 router = APIRouter(prefix="/api/device", tags=["Device"])
 
 
@@ -53,9 +63,9 @@ class DeviceModel:
                            or None if an error occurred.
         """
         try:
-            result = await self.collection.insert_one(data)
-            print(f"Inserted sensor data with ID: {result.inserted_id}")
-            return str(result.inserted_id)
+            result = await insert_one(self.collection, data)
+            print(f"Inserted sensor data with ID: {result}")
+            return result
         except Exception as e:
             print(f"Error inserting sensor data: {e}")
             return None
@@ -83,6 +93,11 @@ class DeviceModel:
             device_id (int): The ID of the device to retrieve data for."""
         try:
             data = await find_many(self.collection, {"Device_Id": device_id}, sort=[("timestamp", -1)])
+            data = await find_many(
+                self.collection, 
+                {"Device_Id": device_id}, 
+                sort=[("timestamp", -1)]
+            )
             for items in data:
                 items['_id'] = str(items['_id'])
             return data
