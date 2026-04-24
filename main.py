@@ -9,7 +9,7 @@ load_dotenv(dotenv_path=ROOT_DIR / '.env')
 
 
 from fastapi import FastAPI
-from back_end.routes import auth, device_route
+from back_end.routes import auth, device_route, shipment_route
 import logging
 
 
@@ -25,6 +25,7 @@ app = FastAPI(
 # Include routes
 app.include_router(auth.router)
 app.include_router(device_route.router)
+app.include_router(shipment_route.router)
 
 @app.get("/")
 def read_root():

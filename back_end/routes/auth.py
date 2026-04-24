@@ -3,16 +3,7 @@ from datetime import datetime, timezone
 import uuid
 import jwt
 
-from back_end.db.database import (
-    get_db,
-    users_collection,
-    find_one,
-    find_many,
-    insert_one,
-    update_one,
-    delete_one,
-    count_documents,
-)
+from back_end.db.database import get_db, users_collection, find_one, find_many, insert_one, update_one, delete_one, count_documents
 from back_end.routes.auth_config import COLL_USERS, SECRET_KEY, ALGORITHM, JWT_ISSUER
 from back_end.routes.auth_utils import (
     hash_password,
@@ -288,9 +279,8 @@ async def update_user_role(
             detail="Cannot change your own role"
         )
     
-    success = await update_one(users_collection, {"id": user_id}, {"role": new_role})
-    
-    if not success:
+    updated = await update_one(users_collection, {"id": user_id}, {"role": new_role})
+    if not updated:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"

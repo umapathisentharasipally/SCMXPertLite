@@ -6,9 +6,10 @@ from typing import Optional, List, Dict, Any
 import uuid
 import os
 import random
-from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 
+from back_end.routes.auth import get_current_user  
+from back_end.db.database import sensor_data_collection, insert_one, find_many, find_one
 
 
 from  back_end.routes.auth import get_current_user  
@@ -77,12 +78,10 @@ class DeviceModel:
         """
         try:
             data = await find_many(self.collection)
-            
             for items in data:
                 if "_id" in items:
                     items["id"] = str(items["_id"])
             return data
-    
         except Exception as e:
             print(f"Error retrieving all sensor data: {e}")
             return []
@@ -93,6 +92,7 @@ class DeviceModel:
         Args:
             device_id (int): The ID of the device to retrieve data for."""
         try:
+            data = await find_many(self.collection, {"Device_Id": device_id}, sort=[("timestamp", -1)])
             data = await find_many(
                 self.collection, 
                 {"Device_Id": device_id}, 
@@ -111,7 +111,6 @@ class DeviceModel:
         Args:
             device_id (int): The ID of the device to retrieve data for.
         Returns:
-
             Optional[Dict[str, Any]]: A dictionary representing the latest sensor data for the device,
                                       or None if no data is found or an error occurs.     """        
         try:
