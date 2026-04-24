@@ -1,80 +1,94 @@
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import datetime, timezone
-
-from back_end.db.database import get_db
-from back_end.routes.auth_config import (
-    SECRET_KEY,
-    ALGORITHM,
-    JWT_ISSUER,
-    COLL_LOGS,
-    COLL_USERS,
-)
+from typing import Optional
+from back_end.db.database import get_db, logins_collection, find_one, insert_one
+from back_end.routes.auth_config import SECRET_KEY, ALGORITHM, JWT_ISSUER
 from back_end.routes.auth_utils import verify_password
-import jwt
 
 security = HTTPBearer()
 
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Dependency to get current authenticated user."""
-    token = credentials.credentials
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> dict:
+    """Get the current authenticated user from JWT token."""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
     try:
+        token = credentials.credentials
         payload = jwt.decode(
             token,
             SECRET_KEY,
             algorithms=[ALGORITHM],
-            issuer=JWT_ISSUER,
-            options={"require": ["exp", "iat", "nbf", "sub", "iss"]},
+            options={"verify_iss": True, "verify_exp": True}
         )
+        
+        if payload.get("iss") != JWT_ISSUER:
+            raise credentials_exception
+            
         user_id: str = payload.get("sub")
-        if not user_id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials",
-            )
+        if user_id is None:
+            raise credentials_exception
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired",
+            detail="Token has expired"
         )
     except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-        )
-
-    db = get_db()
-    user = await db[COLL_USERS].find_one({"id": user_id}, {"_id": 0})
+        raise credentials_exception
+    
+    # Get user from database
+    from back_end.db.database import users_collection
+    user = await find_one(users_collection, {"id": user_id})
+    
     if user is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
         )
+    
     return user
 
 
-async def admin_required(user: dict = Depends(get_current_user)):
-    """A dependency that ensures the current user has the 'admin' role."""
-    if user.get("role") != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
-    return user
+async def admin_required(current_user: dict = Depends(get_current_user)) -> dict:
+    """Require admin or super_admin role."""
+    if current_user.get("role") not in ["admin", "super_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required"
+        )
+    return current_user
 
 
-async def super_admin_required(user: dict = Depends(get_current_user)):
-    """A dependency that ensures the current user has the 'super_admin' role."""
-    if user.get("role") != "super_admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Super admin access required")
-    return user
+async def super_admin_required(current_user: dict = Depends(get_current_user)) -> dict:
+    """Require super_admin role only."""
+    if current_user.get("role") != "super_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super admin privileges required"
+        )
+    return current_user
 
 
-async def log_login_attempt(db, email: str, success: bool, ip_address: str = None, user_agent: str = None):
-    """Log login attempts to the logins collection."""
-    log_entry = {
+async def log_login_attempt(
+    db,
+    email: str,
+    success: bool,
+    ip_address: Optional[str] = None,
+    user_agent: Optional[str] = None
+):
+    """Log a login attempt to the database."""
+    login_record = {
         "email": email,
         "success": success,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
         "ip_address": ip_address,
         "user_agent": user_agent,
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
-    await db[COLL_LOGS].insert_one(log_entry)
+    await insert_one(logins_collection, login_record)

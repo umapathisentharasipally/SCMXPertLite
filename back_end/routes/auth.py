@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import uuid
 import jwt
 
-from back_end.db.database import get_db
+from back_end.db.database import get_db, users_collection, find_one, find_many, insert_one, update_one, delete_one, count_documents
 from back_end.routes.auth_config import COLL_USERS, SECRET_KEY, ALGORITHM, JWT_ISSUER
 from back_end.routes.auth_utils import (
     hash_password,
@@ -35,9 +35,8 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 async def signup(request: SignupRequest):
     """Register a new user."""
     await verify_recaptcha_token(request.recaptcha_token)
-    db = get_db()
 
-    existing_user = await db[COLL_USERS].find_one({"email": request.email})
+    existing_user = await find_one(users_collection, {"email": request.email})
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -53,7 +52,7 @@ async def signup(request: SignupRequest):
         "role": "user",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    await db[COLL_USERS].insert_one(user_docs)
+    await insert_one(users_collection, user_docs)
 
     access_token = create_access_token(data={"sub": user_id, "role": "user"})
     user_response = UserResponse(
@@ -73,11 +72,10 @@ async def signup(request: SignupRequest):
 async def login(request: LoginRequest, ip_address: str = None, user_agent: str = None):
     """Authenticate user and return JWT token"""
     await verify_recaptcha_token(request.recaptcha_token)
-    db = get_db()
     
-    user = await db[COLL_USERS].find_one({"email": request.email}, {"_id": 0})
+    user = await find_one(users_collection, {"email": request.email})
     if not user:
-        await log_login_attempt(db, request.email, False, ip_address, user_agent)
+        await log_login_attempt(get_db(), request.email, False, ip_address, user_agent)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
@@ -85,14 +83,14 @@ async def login(request: LoginRequest, ip_address: str = None, user_agent: str =
     
     password_hash = user.get("hashed_password") or user.get("password_hash")
     if not password_hash:
-        await log_login_attempt(db, request.email, False, ip_address, user_agent)
+        await log_login_attempt(get_db(), request.email, False, ip_address, user_agent)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Account needs to be re-registered. Please sign up again."
         )
 
     if not verify_password(request.password, password_hash):
-        await log_login_attempt(db, request.email, False, ip_address, user_agent)
+        await log_login_attempt(get_db(), request.email, False, ip_address, user_agent)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
@@ -102,7 +100,7 @@ async def login(request: LoginRequest, ip_address: str = None, user_agent: str =
         data={"sub": user["id"], "role": user.get("role", "user")}
     )
     
-    await log_login_attempt(db, request.email, True, ip_address, user_agent)
+    await log_login_attempt(get_db(), request.email, True, ip_address, user_agent)
     
     user_response = UserResponse(
         id=user["id"],
@@ -131,8 +129,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 @router.post("/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
     """Request a password reset token"""
-    db = get_db()
-    user = await db[COLL_USERS].find_one({"email": request.email})
+    user = await find_one(users_collection, {"email": request.email})
     if not user:
         return {"message": "If the email exists, a reset link has been sent."}
 
@@ -161,16 +158,12 @@ async def reset_password(request: ResetPasswordRequest):
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=400, detail="Invalid reset token")
 
-    db = get_db()
-    user = await db[COLL_USERS].find_one({"email": email})
+    user = await find_one(users_collection, {"email": email})
     if not user:
         raise HTTPException(status_code=400, detail="Invalid reset token")
 
     hashed_password = hash_password(request.new_password)
-    await db[COLL_USERS].update_one(
-        {"email": email},
-        {"$set": {"hashed_password": hashed_password}}
-    )
+    await update_one(users_collection, {"email": email}, {"hashed_password": hashed_password})
 
     return {"message": "Password has been reset successfully"}
 
@@ -247,13 +240,16 @@ async def list_all_users(
     current_user: dict = Depends(super_admin_required)
 ):
     """List all users (super admin only). Optionally filter by role."""
-    db = get_db()
     query = {}
     if role:
         query["role"] = role
     
-    users = await db[COLL_USERS].find(query, {"_id": 0, "hashed_password": 0}).skip(skip).limit(limit).to_list(length=limit)
-    total = await db[COLL_USERS].count_documents(query)
+    users = await find_many(users_collection, query, limit=limit)
+    # Remove sensitive fields from results
+    for user in users:
+        user.pop("hashed_password", None)
+        user.pop("_id", None)
+    total = await count_documents(users_collection, query)
     
     return {
         "users": users,
@@ -283,13 +279,8 @@ async def update_user_role(
             detail="Cannot change your own role"
         )
     
-    db = get_db()
-    result = await db[COLL_USERS].update_one(
-        {"id": user_id},
-        {"$set": {"role": new_role}}
-    )
-    
-    if result.matched_count == 0:
+    updated = await update_one(users_collection, {"id": user_id}, {"role": new_role})
+    if not updated:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
@@ -311,10 +302,8 @@ async def delete_user(
             detail="Cannot delete your own account"
         )
     
-    db = get_db()
-    result = await db[COLL_USERS].delete_one({"id": user_id})
-    
-    if result.deleted_count == 0:
+    deleted = await delete_one(users_collection, {"id": user_id})
+    if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
@@ -343,8 +332,7 @@ async def create_admin(
             detail="Password must be at least 8 characters with uppercase, lowercase, digit, and special character"
         )
     
-    db = get_db()
-    existing = await db[COLL_USERS].find_one({"email": email})
+    existing = await find_one(users_collection, {"email": email})
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -360,7 +348,7 @@ async def create_admin(
         "role": "admin",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    await db[COLL_USERS].insert_one(user_docs)
+    await insert_one(users_collection, user_docs)
     
     return {
         "message": "Admin created successfully",
