@@ -2,7 +2,6 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
-
 class ShipmentCreate(BaseModel):
     shipment_number: str = Field(..., min_length=1)
     route: str
