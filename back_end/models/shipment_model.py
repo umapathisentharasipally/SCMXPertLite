@@ -17,7 +17,6 @@ class ShipmentCreate(BaseModel):
     description: str
     status: Optional[str] = Field(default="In Transit")
 
-
 class ShipmentOut(BaseModel):
     id: Optional[str]
     shipment_number: str

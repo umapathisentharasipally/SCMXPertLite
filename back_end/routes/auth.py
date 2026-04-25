@@ -302,8 +302,9 @@ async def delete_user(
             detail="Cannot delete your own account"
         )
     
-    deleted = await delete_one(users_collection, {"id": user_id})
-    if not deleted:
+    success = await delete_one(users_collection, {"id": user_id})
+    
+    if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
