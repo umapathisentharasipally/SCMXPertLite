@@ -8,18 +8,7 @@ import os
 import random
 from bson import ObjectId
 
-from back_end.routes.auth import get_current_user  
-from back_end.db.database import sensor_data_collection, insert_one, find_many, find_one
-
-
-from  back_end.routes.auth import get_current_user  
-from back_end.db.database import (
-    get_db,
-    sensor_data_collection,
-    find_one,
-    find_many,
-    insert_one,
-)
+from back_end.db.database import get_sensor_data_collection, insert_one, find_many, find_one
 router = APIRouter(prefix="/api/device", tags=["Device"])
 
 
@@ -49,7 +38,7 @@ class DeviceModel:
     Manages database operations for sensor data in the "sensor_data" MongoDB collection.
     """
     def __init__(self):
-        self.collection = sensor_data_collection
+        self.collection = get_sensor_data_collection()
 
     async def create_sensor_reading(self, data: Dict[str, Any]) -> Optional[str]:
         """

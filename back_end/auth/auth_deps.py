@@ -4,8 +4,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import datetime, timezone
 from typing import Optional
 from back_end.db.database import get_db, logins_collection, find_one, insert_one
-from back_end.routes.auth_config import SECRET_KEY, ALGORITHM, JWT_ISSUER
-from back_end.routes.auth_utils import verify_password
+from back_end.config import SECRET_KEY, ALGORITHM, JWT_ISSUER
+from back_end.auth.auth_utils import verify_password
 
 security = HTTPBearer()
 

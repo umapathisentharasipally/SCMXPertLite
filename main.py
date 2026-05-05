@@ -1,10 +1,4 @@
-from dotenv import load_dotenv
-from pathlib import Path
-import os
-
-# Load environment variables FIRST, before any other imports
-ROOT_DIR = Path(__file__).parent
-load_dotenv(dotenv_path=ROOT_DIR / '.env')
+from back_end.config import ROOT_DIR
 
 
 

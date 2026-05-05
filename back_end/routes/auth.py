@@ -3,16 +3,16 @@ from datetime import datetime, timezone
 import uuid
 import jwt
 
-from back_end.db.database import get_db, users_collection, find_one, find_many, insert_one, update_one, delete_one, count_documents
-from back_end.routes.auth_config import COLL_USERS, SECRET_KEY, ALGORITHM, JWT_ISSUER
-from back_end.routes.auth_utils import (
+from back_end.db.database import get_db, get_users_collection, find_one, find_many, insert_one, update_one, delete_one, count_documents
+from back_end.auth.auth_config import COLL_USERS, SECRET_KEY, ALGORITHM, JWT_ISSUER
+from back_end.auth.auth_utils import (
     hash_password,
     create_access_token,
     create_reset_token,
     verify_recaptcha_token,
     verify_password,
 )
-from back_end.routes.auth_deps import (
+from back_end.auth.auth_deps import (
     get_current_user,
     admin_required,
     super_admin_required,
@@ -36,7 +36,7 @@ async def signup(request: SignupRequest):
     """Register a new user."""
     await verify_recaptcha_token(request.recaptcha_token)
 
-    existing_user = await find_one(users_collection, {"email": request.email})
+    existing_user = await find_one(get_users_collection(), {"email": request.email})
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -163,7 +163,7 @@ async def reset_password(request: ResetPasswordRequest):
         raise HTTPException(status_code=400, detail="Invalid reset token")
 
     hashed_password = hash_password(request.new_password)
-    await update_one(users_collection, {"email": email}, {"hashed_password": hashed_password})
+    await update_one(get_users_collection(), {"email": email}, {"hashed_password": hashed_password})
 
     return {"message": "Password has been reset successfully"}
 
@@ -244,12 +244,12 @@ async def list_all_users(
     if role:
         query["role"] = role
     
-    users = await find_many(users_collection, query, limit=limit)
+    users = await find_many(get_users_collection(), query, limit=limit)
     # Remove sensitive fields from results
     for user in users:
         user.pop("hashed_password", None)
         user.pop("_id", None)
-    total = await count_documents(users_collection, query)
+    total = await count_documents(get_users_collection(), query)
     
     return {
         "users": users,
@@ -279,7 +279,7 @@ async def update_user_role(
             detail="Cannot change your own role"
         )
     
-    updated = await update_one(users_collection, {"id": user_id}, {"role": new_role})
+    updated = await update_one(get_users_collection(), {"id": user_id}, {"role": new_role})
     if not updated:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -302,7 +302,7 @@ async def delete_user(
             detail="Cannot delete your own account"
         )
     
-    success = await delete_one(users_collection, {"id": user_id})
+    success = await delete_one(get_users_collection(), {"id": user_id})
     
     if not success:
         raise HTTPException(
@@ -324,7 +324,7 @@ async def create_admin(
     from back_end.models.auth_models import SignupRequest
     
     # Verify the email is deliverable
-    from back_end.routes.auth_utils import verify_recaptcha_token
+    from back_end.auth.auth_utils import verify_recaptcha_token
     from back_end.models.auth_models import PASSWORD_REGEX
     
     if not PASSWORD_REGEX.match(password):
@@ -333,7 +333,7 @@ async def create_admin(
             detail="Password must be at least 8 characters with uppercase, lowercase, digit, and special character"
         )
     
-    existing = await find_one(users_collection, {"email": email})
+    existing = await find_one(get_users_collection(), {"email": email})
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

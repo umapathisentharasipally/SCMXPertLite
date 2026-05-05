@@ -16,9 +16,7 @@ PASSWORD_REGEX = re.compile(
     r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
 )
 
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
-ALGORITHM = "HS256"
-JWT_ISSUER = "scmxpertlite"
+from back_end.config import SECRET_KEY, ALGORITHM, JWT_ISSUER
 
 
 def hash_password(password: str) -> str:
