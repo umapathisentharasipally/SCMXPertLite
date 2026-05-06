@@ -164,6 +164,5 @@ __all__ = [
     'get_users_collection',
     'get_shipments_collection',
     'get_logins_collection',
-    'get_sensor_data_collection',
-    'db',
+    'get_sensor_data_collection'
 ]
