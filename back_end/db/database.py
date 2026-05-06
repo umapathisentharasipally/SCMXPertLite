@@ -1,97 +1,85 @@
-
 import motor
 from motor.motor_asyncio import AsyncIOMotorClient
-import os
-from dotenv import load_dotenv
+from back_end.config import (
+    MONGO_USERNAME, MONGO_PASSWORD, MONGO_CLUSTER_NAME, MONGO_DB_NAME, MONGO_URL,
+    COLL_USERS, COLL_SHIPMENTS, COLL_LOGS, COLL_DEVICES
+)
+from typing import Optional, Dict, List, Any
 from urllib.parse import quote_plus
-from typing import Optional, Dict
 
-load_dotenv()
-
-
-def get_mongo_uri() -> str:
-    """Build MongoDB connection URI from environment variables."""
-    username = quote_plus(os.getenv('MONGO_USERNAME', ''))
-    password = quote_plus(os.getenv('MONGO_PASSWORD', ''))
-    cluster_name = os.getenv('MONGO_CLUSTER_NAME', 'users')
-    return f'mongodb+srv://{username}:{password}@{cluster_name}.qarlknd.mongodb.net/?retryWrites=true&w=majority'
-
-
-def get_database(db_name: Optional[str] = None) -> motor.AsyncIOMotorDatabase:
-    """Create and return MongoDB client and database."""
-    uri = get_mongo_uri()
-    client = AsyncIOMotorClient(uri)
-    database_name = db_name or os.getenv("MONGO_DB_NAME", "SCM_DB")
-    return client[database_name]
-
-
-def get_collections(db: motor.motor_asyncio.AsyncIOMotorDatabase) -> Dict[str, motor.motor_asyncio.AsyncIOMotorCollection]:
-    """Return a dictionary of collection references."""
-    coll_users = os.getenv('COLL_USERS', 'users')
-    coll_shipments = os.getenv('COLL_SHIPMENTS', 'shipments')
-    coll_logs = os.getenv('COLL_LOGS', 'logins')
-    coll_devices = os.getenv('COLL_DEVICES', 'devices')
-    return {
-        'users': db[coll_users],
-        'shipments': db[coll_shipments],
-        'logins': db[coll_logs],
-        'devices': db[coll_devices]
-    }
-
-
-# Initialize default collections
-client = motor.motor_asyncio.AsyncIOMotorClient(get_mongo_uri())
-db = client[os.getenv("MONGO_DB_NAME", "SCM_DB")]
-
-coll_users = os.getenv('COLL_USERS', 'users')
-coll_shipments = os.getenv('COLL_SHIPMENTS', 'shipments')
-coll_logs = os.getenv('COLL_LOGS', 'logins')
-coll_devices = os.getenv('COLL_DEVICES', 'devices')
-
-users_collection = db[coll_users]
-shipments_collection = db[coll_shipments]
-logins_collection = db[coll_logs]
-devices_collection = db[coll_devices]
-
-
-from typing import Optional, List, Dict, Any
 
 # ============== Database Connection ==============
 
+# Lazy load database connection to avoid connection at import time
+_db = None
+
 def get_db():
-    """Get database connection."""
-    # Check for full MongoDB Atlas URL first
-    mongo_url = os.environ.get("MONGO_URL")
-    
-    # If no full URL, construct from Atlas credentials
-    if not mongo_url:
-        username = os.environ.get("MONGO_USERNAME")
-        password = os.environ.get("MONGO_PASSWORD")
-        cluster = os.environ.get("MONGO_CLUSTER_NAME", "users")
-        
-        if username and password:
-            mongo_url = f"mongodb+srv://{username}:{password}@{cluster}.mongodb.net/"
-        else:
-            mongo_url = "mongodb://localhost:27017"
-    
-    client = AsyncIOMotorClient(
-        mongo_url,
-        serverSelectionTimeoutMS=5000,
-        connectTimeoutMS=10000,
-        retryWrites=True,
-        retryReads=True
-    )
-    db_name = os.environ.get("MONGO_DB_NAME", "SCM_DB")
-    return client[db_name]
+    global _db
+    if _db is None:
+        # Check for full MongoDB Atlas URL first
+        mongo_url = MONGO_URL
+
+        # If no full URL, construct from Atlas credentials
+        if not mongo_url:
+            username = MONGO_USERNAME
+            password = MONGO_PASSWORD
+            cluster = MONGO_CLUSTER_NAME
+
+            if username and password:
+                mongo_url = f"mongodb+srv://{username}:{password}@{cluster}.mongodb.net/"
+            else:
+                mongo_url = "mongodb://localhost:27017"
+
+        client = AsyncIOMotorClient(
+            mongo_url,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=10000,
+            retryWrites=True,
+            retryReads=True
+        )
+        _db = client[MONGO_DB_NAME]
+    return _db
 
 
 # ============== Collections ==============
 
-db = get_db()
-users_collection = db['users']
-shipments_collection = db['shipments']
-logins_collection = db['logins']
-sensor_data_collection = db['sensor_data']
+# Lazy load collections to avoid connection at import time
+_collections_initialized = False
+
+users_collection = None
+shipments_collection = None
+logins_collection = None
+sensor_data_collection = None
+
+def _init_collections():
+    global users_collection, shipments_collection, logins_collection, sensor_data_collection, _collections_initialized
+    if not _collections_initialized:
+        db = get_db()
+        users_collection = db['users']
+        shipments_collection = db['shipments']
+        logins_collection = db['logins']
+        sensor_data_collection = db['sensor_data']
+        _collections_initialized = True
+
+def get_users_collection():
+    if users_collection is None:
+        _init_collections()
+    return users_collection
+
+def get_shipments_collection():
+    if shipments_collection is None:
+        _init_collections()
+    return shipments_collection
+
+def get_logins_collection():
+    if logins_collection is None:
+        _init_collections()
+    return logins_collection
+
+def get_sensor_data_collection():
+    if sensor_data_collection is None:
+        _init_collections()
+    return sensor_data_collection
 
 
 # ============== Reusable CRUD Functions ==============
@@ -133,7 +121,7 @@ async def update_one(collection, query: Dict[str, Any],
 
 async def update_many(collection, query: Dict[str, Any], 
                       update: Dict[str, Any]) -> int:
-    """Update multiple documents. Returns count of modified documents."""
+    """Update many documents. Returns count of modified documents."""
     result = await collection.update_many(query, {'$set': update})
     return result.modified_count
 
@@ -145,7 +133,7 @@ async def delete_one(collection, query: Dict[str, Any]) -> bool:
 
 
 async def delete_many(collection, query: Dict[str, Any]) -> int:
-    """Delete multiple documents. Returns count of deleted documents."""
+    """Delete many documents. Returns count of deleted documents."""
     result = await collection.delete_many(query)
     return result.deleted_count
 
@@ -173,9 +161,8 @@ __all__ = [
     'delete_many',
     'count_documents',
     'exists',
-    'users_collection',
-    'shipments_collection',
-    'logins_collection',
-    'sensor_data_collection',
-    'db',
+    'get_users_collection',
+    'get_shipments_collection',
+    'get_logins_collection',
+    'get_sensor_data_collection'
 ]
