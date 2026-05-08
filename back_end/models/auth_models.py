@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from datetime import datetime
 from dns import resolver
 import re
@@ -8,6 +8,9 @@ PASSWORD_REGEX = re.compile(
     r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};:'\"\\|,.<>/?]).{8,}$"
 )
 
+PHONE_REGEX = re.compile(
+    r"^[6-9]\d{9}$"
+)
 
 DISPOSABLE_DOMAINS = {
     "mailinator.com",
@@ -29,17 +32,25 @@ DISPOSABLE_DOMAINS = {
 def verify_email_domain(email: str) -> bool:
     try:
         domain = email.split("@")[1]
-        mx_records = resolver.resolve(domain, "MX")
+
+        dns_resolver = resolver.Resolver()
+        dns_resolver.lifetime = 3
+        dns_resolver.timeout = 3
+
+        mx_records = dns_resolver.resolve(domain, "MX")
+
         return len(mx_records) > 0
+
     except Exception:
         return False
-
 
 class SignupRequest(BaseModel):
     full_name: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
-    password: str = Field(..., min_length=8)
-    recaptcha_token: str = Field(..., min_length=1)
+    phone_number: str = Field(..., min_length=10, max_length=10)
+    password: str = Field(..., min_length=8, max_length=64)
+    confirm_password: str = Field(..., min_length=8, max_length=64)
+   # recaptcha_token: str = Field(..., min_length=1)
 
     @field_validator("full_name")
     @classmethod
@@ -64,6 +75,18 @@ class SignupRequest(BaseModel):
             raise ValueError("Invalid email domain or domain does not exist")
 
         return email
+    
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone_number(cls, value: str) -> str:
+        value = value.strip()
+
+        if not PHONE_REGEX.match(value):
+            raise ValueError(
+                "Invalid Indian phone number"
+            )
+
+        return value
 
     @field_validator("password")
     @classmethod
@@ -74,6 +97,15 @@ class SignupRequest(BaseModel):
             )
 
         return password
+    
+    @model_validator(mode="after")
+    def validate_confirm_password(self):
+        if self.password != self.confirm_password:
+            raise ValueError(
+                "Password and confirm password do not match"
+            )
+
+        return self
 
 
 class UserResponse(BaseModel):
@@ -92,7 +124,7 @@ class TokenResponse(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
-    recaptcha_token: str = Field(..., min_length=1)
+   # recaptcha_token: str = Field(..., min_length=1)
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -101,7 +133,7 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str = Field(..., min_length=8)
+    new_password: str = Field(..., min_length=8, max_length=64)
 
     @field_validator("new_password")
     @classmethod

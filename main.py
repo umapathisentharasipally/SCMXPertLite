@@ -4,9 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import logging
 import uvicorn
-
+from back_end.routes.auth import user_auth_routes, admin_auth_routes
 from back_end.routes import (
-    auth,
     device_route,
     shipment_route
 )
@@ -46,7 +45,8 @@ app.add_middleware(
 
 # ==================== ROUTERS ====================
 
-app.include_router(auth.router)
+app.include_router(user_auth_routes.router)
+app.include_router(admin_auth_routes.router)
 app.include_router(device_route.router)
 app.include_router(shipment_route.router)
 
@@ -107,4 +107,4 @@ async def shutdown_event():
 # ==================== MAIN ====================
 
 if __name__ == "__main__":
-    uvicorn.run("main:app",host="0.0.0.0",port=8000,reload=True)
+    uvicorn.run("main:app",host="127.0.0.1",port=8000,reload=True)

@@ -26,7 +26,12 @@ def get_db():
             cluster = MONGO_CLUSTER_NAME
 
             if username and password:
-                mongo_url = f"mongodb+srv://{username}:{password}@{cluster}.mongodb.net/"
+                mongo_url = (
+                    f"mongodb+srv://"
+                    f"{quote_plus(username)}:"
+                    f"{quote_plus(password)}"
+                    f"@{cluster}.mongodb.net/"
+                )
             else:
                 mongo_url = "mongodb://localhost:27017"
 

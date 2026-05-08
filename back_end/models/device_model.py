@@ -18,7 +18,9 @@ class SensorData(BaseModel):
     First_Sensor_temperature: float
     Route_From: str
     Route_To: str
-    Timestamp_IST: datetime = Field(default_factory=datetime.now(timezone.utc))
+    Timestamp_IST: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
 
     class Config:
         populate_by_name = True
@@ -41,23 +43,6 @@ class DeviceModel:
         except Exception as e:
             print(f"Error inserting sensor data: {e}")
             return None
-
-    async def get_all_sensor_data(self) -> List[Dict[str, Any]]:
-        try:
-            data = await find_many(
-                self.collection,
-                {},
-                sort=[("Timestamp_IST", -1)]
-            )
-
-            for item in data:
-                item["_id"] = str(item["_id"])
-
-            return data
-
-        except Exception as e:
-            print(f"Error retrieving all sensor data: {e}")
-            return []
 
     async def get_sensor_data_by_query(self, query: dict) -> List[Dict[str, Any]]:
         try:
