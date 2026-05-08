@@ -1,9 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, Any
-from bson import ObjectId
 from datetime import datetime, timezone
-from back_end.auth.access_control import build_shipment_query
 
+from back_end.auth.access_control import build_shipment_query
 from back_end.models.shipment_model import ShipmentCreate, ShipmentUpdate
 from back_end.db.database import (
     get_shipments_collection,
@@ -13,7 +12,8 @@ from back_end.db.database import (
     update_one,
     delete_one
 )
-from back_end.auth.auth_deps import get_current_user, admin_required
+from back_end.auth.auth_deps import get_current_user
+
 
 router = APIRouter(prefix="/shipments", tags=["Shipments"])
 
@@ -28,6 +28,24 @@ def serialize_shipment(shipment: Dict[str, Any]) -> Dict[str, Any]:
         shipment["updated_at"] = shipment["updated_at"].isoformat()
 
     return shipment
+
+
+def admin_or_super_admin_only(user: dict):
+    if user.get("role") not in ["admin", "super_admin"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Users are not allowed to update or delete shipment data"
+        )
+
+
+async def get_accessible_shipment(shipment_id: str, user: dict):
+    query = build_shipment_query(user)
+    query["shipment_id"] = shipment_id
+
+    return await find_one(
+        get_shipments_collection(),
+        query
+    )
 
 
 @router.post("/", status_code=201)
@@ -49,6 +67,7 @@ async def create_shipment(
     now = datetime.now(timezone.utc)
 
     shipment_data = shipment.dict()
+
     shipment_data["created_by"] = {
         "id": user.get("id"),
         "email": user.get("email"),
@@ -58,20 +77,27 @@ async def create_shipment(
     shipment_data["admin_id"] = (
         user.get("id") if user.get("role") == "admin" else user.get("admin_id")
     )
+
     shipment_data["created_at"] = now
     shipment_data["updated_at"] = now
 
-    inserted_id = await insert_one(get_shipments_collection(), shipment_data)
+    inserted_id = await insert_one(
+        get_shipments_collection(),
+        shipment_data
+    )
 
     return {
         "success": True,
         "message": "Shipment created successfully",
-        "shipment_id": inserted_id
+        "shipment_id": shipment.shipment_id,
+        "mongo_id": inserted_id
     }
 
 
 @router.get("/all")
-async def get_shipments(user: dict = Depends(get_current_user)):
+async def get_shipments(
+    user: dict = Depends(get_current_user)
+):
     query = await build_shipment_query(user)
 
     shipments = await find_many(
@@ -88,7 +114,9 @@ async def get_shipments(user: dict = Depends(get_current_user)):
 
 
 @router.get("/mine")
-async def get_my_shipments(user: dict = Depends(get_current_user)):
+async def get_my_shipments(
+    user: dict = Depends(get_current_user)
+):
     query = await build_shipment_query(user)
 
     shipments = await find_many(
@@ -110,13 +138,13 @@ async def get_shipment_by_id(
     shipment_id: str,
     user: dict = Depends(get_current_user)
 ):
-    shipment = await find_one(
-        get_shipments_collection(),
-        {"shipment_id": shipment_id}
-    )
+    shipment = await get_accessible_shipment(shipment_id, user)
 
     if not shipment:
-        raise HTTPException(status_code=404, detail="Shipment not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Shipment not found or access denied"
+        )
 
     return {
         "success": True,
@@ -128,8 +156,18 @@ async def get_shipment_by_id(
 async def update_shipment(
     shipment_id: str,
     updates: ShipmentUpdate,
-    admin: dict = Depends(admin_required)
+    user: dict = Depends(get_current_user)
 ):
+    admin_or_super_admin_only(user)
+
+    shipment = await get_accessible_shipment(shipment_id, user)
+
+    if not shipment:
+        raise HTTPException(
+            status_code=404,
+            detail="Shipment not found or access denied"
+        )
+
     update_data = {
         key: value
         for key, value in updates.dict().items()
@@ -137,7 +175,10 @@ async def update_shipment(
     }
 
     if not update_data:
-        raise HTTPException(status_code=400, detail="No update data provided")
+        raise HTTPException(
+            status_code=400,
+            detail="No update data provided"
+        )
 
     update_data["updated_at"] = datetime.now(timezone.utc)
 
@@ -149,8 +190,8 @@ async def update_shipment(
 
     if not success:
         raise HTTPException(
-            status_code=404,
-            detail="Shipment not found or no changes applied"
+            status_code=500,
+            detail="Failed to update shipment"
         )
 
     return {
@@ -163,9 +204,25 @@ async def update_shipment(
 async def update_shipment_status(
     shipment_id: str,
     status_value: str,
-    admin: dict = Depends(admin_required)
+    user: dict = Depends(get_current_user)
 ):
-    allowed_status = ["Created", "In Transit", "Delayed", "Delivered", "Closed"]
+    admin_or_super_admin_only(user)
+
+    shipment = await get_accessible_shipment(shipment_id, user)
+
+    if not shipment:
+        raise HTTPException(
+            status_code=404,
+            detail="Shipment not found or access denied"
+        )
+
+    allowed_status = [
+        "Created",
+        "In Transit",
+        "Delayed",
+        "Delivered",
+        "Closed"
+    ]
 
     if status_value not in allowed_status:
         raise HTTPException(
@@ -183,7 +240,10 @@ async def update_shipment_status(
     )
 
     if not success:
-        raise HTTPException(status_code=404, detail="Shipment not found")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to update shipment status"
+        )
 
     return {
         "success": True,
@@ -194,15 +254,28 @@ async def update_shipment_status(
 @router.delete("/{shipment_id}")
 async def delete_shipment(
     shipment_id: str,
-    admin: dict = Depends(admin_required)
+    user: dict = Depends(get_current_user)
 ):
+    admin_or_super_admin_only(user)
+
+    shipment = await get_accessible_shipment(shipment_id, user)
+
+    if not shipment:
+        raise HTTPException(
+            status_code=404,
+            detail="Shipment not found or access denied"
+        )
+
     success = await delete_one(
         get_shipments_collection(),
         {"shipment_id": shipment_id}
     )
 
     if not success:
-        raise HTTPException(status_code=404, detail="Shipment not found")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to delete shipment"
+        )
 
     return {
         "success": True,

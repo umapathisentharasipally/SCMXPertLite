@@ -1,5 +1,9 @@
 from fastapi import HTTPException, status
-from back_end.db.database import get_shipments_collection, find_many
+
+from back_end.db.database import (
+    get_shipments_collection,
+    find_many
+)
 
 
 def build_shipment_query(user: dict) -> dict:
@@ -18,7 +22,9 @@ def build_shipment_query(user: dict) -> dict:
         }
 
     if role == "user":
-        return {"created_by.id": user_id}
+        return {
+            "created_by.id": user_id
+        }
 
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
@@ -57,7 +63,9 @@ async def build_device_query(user: dict) -> dict:
         ]
 
         return {
-            "shipment_id": {"$in": allowed_shipment_ids}
+            "shipment_id": {
+                "$in": allowed_shipment_ids
+            }
         }
 
     raise HTTPException(

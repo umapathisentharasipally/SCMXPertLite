@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List, Dict, Any, Optional
 
 from back_end.models.device_model import DeviceModel, SensorData
 from back_end.auth.auth_deps import get_current_user
@@ -9,16 +8,20 @@ from back_end.auth.access_control import build_device_query
 router = APIRouter(prefix="/api/device", tags=["Device"])
 
 
+def super_admin_only(user: dict):
+    if user.get("role") != "super_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only super admin can modify device data"
+        )
+
+
 @router.post("/sensor_data")
 async def create_sensor_data(
     payload: SensorData,
     user: dict = Depends(get_current_user)
 ):
-    if user.get("role") == "user":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Users are not allowed to create device data"
-        )
+    super_admin_only(user)
 
     device_model = DeviceModel()
     data = payload.dict(by_alias=False)
@@ -38,7 +41,7 @@ async def create_sensor_data(
     }
 
 
-@router.get("/sensor_data", response_model=List[Dict[str, Any]])
+@router.get("/sensor_data")
 async def get_all_sensor_data(
     user: dict = Depends(get_current_user)
 ):
@@ -47,10 +50,14 @@ async def get_all_sensor_data(
     device_model = DeviceModel()
     data = await device_model.get_sensor_data_by_query(query)
 
-    return data
+    return {
+        "success": True,
+        "count": len(data),
+        "data": data
+    }
 
 
-@router.get("/{device_id}/latest_sensor_data", response_model=Optional[Dict[str, Any]])
+@router.get("/{device_id}/latest_sensor_data")
 async def get_latest_device_sensor_data(
     device_id: int,
     user: dict = Depends(get_current_user)
@@ -58,7 +65,10 @@ async def get_latest_device_sensor_data(
     query = await build_device_query(user)
 
     device_model = DeviceModel()
-    data = await device_model.get_latest_sensor_data_by_device_id(device_id, query)
+    data = await device_model.get_latest_sensor_data_by_device_id(
+        device_id,
+        query
+    )
 
     if not data:
         raise HTTPException(
@@ -66,10 +76,13 @@ async def get_latest_device_sensor_data(
             detail="No sensor data found for this device ID"
         )
 
-    return data
+    return {
+        "success": True,
+        "data": data
+    }
 
 
-@router.get("/{device_id}/sensor_history", response_model=List[Dict[str, Any]])
+@router.get("/{device_id}/sensor_history")
 async def get_device_sensor_history(
     device_id: int,
     user: dict = Depends(get_current_user)
@@ -77,7 +90,10 @@ async def get_device_sensor_history(
     query = await build_device_query(user)
 
     device_model = DeviceModel()
-    data = await device_model.get_sensor_data_by_device_id(device_id, query)
+    data = await device_model.get_sensor_data_by_device_id(
+        device_id,
+        query
+    )
 
     if not data:
         raise HTTPException(
@@ -85,4 +101,8 @@ async def get_device_sensor_history(
             detail="No historical sensor data found for this device ID"
         )
 
-    return data
+    return {
+        "success": True,
+        "count": len(data),
+        "data": data
+    }
