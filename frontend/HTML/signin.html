@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SCMXPertLite Login</title>
+
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Poppins", Arial, sans-serif;
+    }
+
+    body {
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background:
+        linear-gradient(
+        135deg,
+        #ffffff,
+        #f3f4f6
+    );
+    }
+
+    .container {
+      width: 900px;
+      height: 580px;
+      background: #ffffff;
+      display: flex;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 15px 45px rgba(0, 0, 0, 0.45);
+    }
+
+    .left-box {
+      width: 50%;
+      background: #111827;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      overflow: hidden;
+    }
+    .left-box::before {
+      content: "";
+      position: absolute;
+
+      width: 650px;
+      height: 650px;
+
+      background: linear-gradient(
+        135deg,
+        rgba(255, 200, 80, 0.22),
+        rgba(255, 170, 50, 0.12),
+      rgba(255, 140, 0, 0.05)
+    );
+
+      clip-path: polygon(
+        0% 20%,
+        35% 0%,
+        85% 10%,
+        100% 50%,
+        80% 100%,
+        20% 85%,
+        0% 60%
+      );
+
+    left: -220px;
+    bottom: -220px;
+
+    transform: rotate(-15deg);
+
+    filter: blur(35px);
+
+    opacity: 1;
+  }
+
+    /*.left-box::before {
+        content: "";
+        position: absolute;
+        width: 520px;
+        height: 520px;
+        background: linear-gradient(
+            135deg,
+            rgba(251, 191, 36, 0.30),
+            rgba(245, 158, 11, 0.18),
+            rgba(217, 119, 6, 0.08)
+            );
+        clip-path: polygon(
+            0% 20%,
+            65% 0%,
+            100% 35%,
+            85% 100%,
+            20% 85%
+            );
+        left: -180px;
+        bottom: -180px;
+        transform: rotate(-15deg);
+        filter: blur(25px);
+    }*/
+
+    .left-content h2 {
+      font-size: 34px;
+      margin-bottom: 20px;
+      color: #ffffff;
+    }
+
+    .left-content p {
+      font-size: 17px;
+      line-height: 1.5;
+      margin-bottom: 40px;
+      color: #e5e7eb;
+    }
+
+    .signup-btn {
+      padding: 14px 48px;
+      border: 1px solid #fbbf24;
+      background: transparent;
+      color: #fbbf24;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: all 0.3s ease;
+    }
+
+    .signup-btn:hover {
+      background: #fbbf24;
+      color: #111827;
+      transform: translateY(-2px);
+    }
+
+    .right-box {
+      width: 50%;
+      padding: 50px 60px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .right-box::before {
+        content: "";
+        position: absolute;
+        width: 420px;
+        height: 420px;
+        background: radial-gradient(
+            circle,
+            rgba(255, 210, 120, 0.35),
+            rgba(255, 190, 80, 0.18),
+            rgba(255, 255, 255, 0)
+         );         
+        border-radius: 45% 55% 60% 40% / 40% 40% 60% 60%;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        filter: blur(25px);
+        opacity: 1;
+    }
+
+    .right-box * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .logo {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 30px;
+      color: #111827;
+    }
+
+    .title {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 30px;
+      color: #111827;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      color: #374151;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      margin-bottom: 14px;
+      outline: none;
+      background: #f3f4f6;
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+
+    input:focus {
+      border-color: #f59e0b;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.35);
+      background: #ffffff;
+    }
+
+    .remember {
+      display: flex;
+      align-items: center;
+      margin-bottom: 18px;
+      font-size: 14px;
+      color: #374151;
+    }
+
+    .remember input {
+      width: auto;
+      margin-right: 8px;
+      margin-bottom: 0;
+      accent-color: #f59e0b;
+    }
+
+    .g-recaptcha {
+      transform: scale(0.9);
+      transform-origin: left;
+      margin-bottom: 14px;
+    }
+
+    .signin-btn {
+      width: 100%;
+      background: #f59e0b;
+      color: #111827;
+      border: none;
+      padding: 14px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .signin-btn:hover {
+      background: #d97706;
+      color: #ffffff;
+      transform: translateY(-2px);
+    }
+
+    .forgot {
+      text-align: center;
+      margin-top: 25px;
+    }
+
+    .forgot a {
+      color: #374151;
+      text-decoration: none;
+      font-size: 15px;
+    }
+
+    .forgot a:hover {
+      color: #d97706;
+      text-decoration: underline;
+    }
+
+    a {
+      text-decoration: none;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+        width: 95%;
+        height: auto;
+      }
+
+      .left-box,
+      .right-box {
+        width: 100%;
+      }
+
+      .right-box {
+        padding: 40px 30px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <div class="left-box">
+      <div class="left-content">
+        <h2>Create your account</h2>
+        <p>Enter your personal details and start your journey with us.</p>
+
+        <a href="signup.html">
+          <button type="button" class="signup-btn">SIGN UP</button>
+        </a>
+      </div>
+    </div>
+
+    <div class="right-box">
+      <div class="logo">SCMXPertLite</div>
+      <div class="title">Sign in now</div>
+
+      <form id="loginForm">
+
+        <label>Email address*</label>
+        <input type="email" id="email" placeholder="Enter your email" />
+
+        <label>Password*</label>
+        <input type="password" id="password" placeholder="Enter your password" />
+
+        <div class="remember">
+          <input type="checkbox" id="remember" />
+          <label for="remember">Remember me</label>
+        </div>
+
+        <div class="g-recaptcha" data-sitekey="YOUR_SITE_KEY"></div>
+
+        <button type="submit" class="signin-btn">SIGN IN</button>
+      </form>
+
+      <div class="forgot">
+        <a href="#">Forgot your password?</a>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const loginForm = document.getElementById("loginForm");
+
+    loginForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      if (email === "") {
+        alert("Please enter email");
+        return;
+      }
+
+      const emailPattern = /^[^ ]+@[^ ]+\.[a-z]{2,3}$/;
+
+      if (!email.match(emailPattern)) {
+        alert("Please enter valid email");
+        return;
+      }
+
+      if (password === "") {
+        alert("Please enter password");
+        return;
+      }
+
+      if (password.length < 6) {
+        alert("Password must be minimum 6 characters");
+        return;
+      }
+
+      const recaptchaResponse = grecaptcha.getResponse();
+
+      if (recaptchaResponse.length === 0) {
+        alert("Please verify Google reCAPTCHA");
+        return;
+      }
+
+      const loginData = {
+        email: email,
+        password: password,
+        recaptcha_token: recaptchaResponse
+      };
+
+      console.log("Login Data:", loginData);
+
+      alert("Login Successful");
+
+      /*
+      fetch("http://127.0.0.1:8000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(loginData)
+      })
+      .then(response => response.json())
+      .then(data => {
+        localStorage.setItem("token", data.access_token);
+        alert("Login Successful");
+        window.location.href = "dashboard.html";
+      })
+      .catch(error => {
+        console.error(error);
+        alert("Login Failed");
+      });
+      */
+    });
+  </script>
+
+</body>
+</html>

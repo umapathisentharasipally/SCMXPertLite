@@ -264,6 +264,7 @@ async def update_user_role(
             detail="Cannot change your own role"
         )
 
+
     update_data = {
         "role": new_role,
         "updated_at": datetime.now(timezone.utc)
