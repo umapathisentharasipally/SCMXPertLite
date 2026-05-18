@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+import fastapi.middleware.cors
+from contextlib import asynccontextmanager
 
 import logging
 import uvicorn
@@ -23,19 +24,31 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# ==================== LIFESPAN EVENTS ====================
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    logger.info("SCMXPertLite API started successfully")
+    yield
+    # Shutdown
+    logger.info("SCMXPertLite API shutdown")
+
+
 # ==================== FASTAPI APP ====================
 
 app = FastAPI(
     title="SCMXPertLite API",
     description="Supply Chain Management & IoT Tracking Platform",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 
 # ==================== CORS ====================
 
 app.add_middleware(
-    CORSMiddleware,
+    fastapi.middleware.cors.CORSMiddleware,
     allow_origins=["*"],  # Change in production
     allow_credentials=True,
     allow_methods=["*"],
