@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SCMXPertLite Signup</title>
-    <!-- Google reCAPTCHA -->
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SCMXPertLite Signup</title>
 
-      <style>
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
+  <style>
     * {
       margin: 0;
       padding: 0;
@@ -20,280 +20,321 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      background: repeating-linear-gradient(
-        45deg,
-        #f4f4f4,
-        #f4f4f4 8px,
-        #e8e8e8 8px,
-        #e8e8e8 16px
-      );
+      background: linear-gradient(135deg, #ffffff, #f3f4f6);
     }
 
     .container {
       width: 900px;
-      min-height: 600px;
+      height: 580px;
+      background: #ffffff;
       display: flex;
-      background: #fff;
-      border-radius: 8px;
+      border-radius: 10px;
       overflow: hidden;
-      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.18);
+      box-shadow: 0 15px 45px rgba(0, 0, 0, 0.45);
     }
 
-    .signup-box {
+    .left-box {
       width: 50%;
-      padding: 45px 70px;
+      padding: 45px 60px;
       position: relative;
+      overflow: hidden;
     }
 
-    .signup-box::before {
+    .left-box::before {
       content: "";
       position: absolute;
-      width: 360px;
-      height: 360px;
-      background: linear-gradient(135deg, #31c8ff, #9b7cff, #ff77d9);
-      border-radius: 50%;
-      left: 35px;
-      top: 190px;
-      filter: blur(4px);
-      opacity: 0.75;
-      z-index: 0;
+      width: 420px;
+      height: 420px;
+      background: radial-gradient(
+        circle,
+        rgba(255, 210, 120, 0.35),
+        rgba(255, 190, 80, 0.18),
+        rgba(255, 255, 255, 0)
+      );
+      border-radius: 45% 55% 60% 40% / 40% 40% 60% 60%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      filter: blur(25px);
     }
 
-    .signup-box * {
+    .left-box * {
       position: relative;
       z-index: 1;
     }
 
-    h1 {
-      font-size: 32px;
-      margin-bottom: 20px;
-      color: #111;
+    .right-box {
+      width: 50%;
+      background: #111827;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      overflow: hidden;
     }
 
-    h2 {
+    .right-box::before {
+      content: "";
+      position: absolute;
+      width: 650px;
+      height: 650px;
+      background: linear-gradient(
+        135deg,
+        rgba(255, 200, 80, 0.22),
+        rgba(255, 170, 50, 0.12),
+        rgba(255, 140, 0, 0.05)
+      );
+      clip-path: polygon(
+        0% 20%,
+        35% 0%,
+        85% 10%,
+        100% 50%,
+        80% 100%,
+        20% 85%,
+        0% 60%
+      );
+      right: -220px;
+      bottom: -220px;
+      transform: rotate(20deg);
+      filter: blur(40px);
+      opacity: 1;
+    }
+    .right-content {
+      position: relative;
+      z-index: 1;
+      padding: 40px;
+    }
+
+    .right-content h2 {
+      font-size: 34px;
+      margin-bottom: 20px;
+      color: #ffffff;
+    }
+
+    .right-content p {
+      font-size: 17px;
+      line-height: 1.5;
+      margin-bottom: 40px;
+      color: #e5e7eb;
+    }
+
+    .logo {
       font-size: 22px;
-      margin-bottom: 18px;
-      color: #111;
+      font-weight: 700;
+      margin-bottom: 25px;
+      color: #111827;
+    }
+
+    .title {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 22px;
+      color: #111827;
     }
 
     label {
       display: block;
-      font-size: 13px;
       margin-bottom: 6px;
-      color: #333;
+      font-size: 14px;
+      color: #374151;
     }
 
     input {
       width: 100%;
-      padding: 13px 15px;
-      margin-bottom: 14px;
-      border: none;
-      outline: none;
-      background: #eee;
+      padding: 10px;
+      border: 1px solid #d1d5db;
       border-radius: 3px;
-      font-size: 13px;
+      margin-bottom: 10px;
+      outline: none;
+      background: #f3f4f6;
+      font-size: 12px;
+      transition: all 0.3s ease;
     }
 
-    .terms {
-      font-size: 10px;
-      color: #777;
-      margin-bottom: 12px;
+    input:focus {
+      border-color: #f59e0b;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.35);
+      background: #ffffff;
     }
 
     .g-recaptcha {
-      transform: scale(0.82);
-      transform-origin: left top;
-      margin-bottom: 5px;
+      transform: scale(0.8);
+      transform-origin: left;
+      margin-bottom: 8px;
     }
 
     .signup-btn {
-      background: #2f5bea;
-      color: white;
+      width: 100%;
+      background: #f59e0b;
+      color: #111827;
       border: none;
-      padding: 12px 32px;
+      padding: 14px;
       border-radius: 4px;
-      font-size: 12px;
+      font-size: 14px;
       font-weight: bold;
       letter-spacing: 1px;
       cursor: pointer;
-      display: block;
-      margin: auto;
+      transition: all 0.3s ease;
     }
 
     .signup-btn:hover {
-      background: #1f49d8;
-    }
-
-    .signin-box {
-      width: 50%;
-      background: #ff514d;
-      color: #111;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-      padding: 60px;
-    }
-
-    .signin-box h2 {
-      font-size: 24px;
-      margin-bottom: 25px;
-    }
-
-    .signin-box p {
-      font-size: 15px;
-      line-height: 1.5;
-      margin-bottom: 45px;
-      max-width: 280px;
+      background: #d97706;
+      color: #ffffff;
+      transform: translateY(-2px);
     }
 
     .signin-btn {
+      padding: 14px 48px;
+      border: 1px solid #fbbf24;
       background: transparent;
-      color: white;
-      border: 1px solid white;
-      padding: 13px 45px;
+      color: #fbbf24;
       border-radius: 4px;
-      font-size: 12px;
       font-weight: bold;
-      letter-spacing: 1px;
       cursor: pointer;
+      letter-spacing: 1px;
+      transition: all 0.3s ease;
     }
 
     .signin-btn:hover {
-      background: white;
-      color: #ff514d;
-    }
-
-    a {
-      text-decoration: none;
+      background: #fbbf24;
+      color: #111827;
+      transform: translateY(-2px);
     }
 
     @media (max-width: 768px) {
       .container {
-        width: 95%;
         flex-direction: column;
+        width: 95%;
+        height: auto;
       }
 
-      .signup-box,
-      .signin-box {
+      .left-box,
+      .right-box {
         width: 100%;
+      }
+
+      .left-box {
         padding: 40px 30px;
       }
     }
   </style>
-
 </head>
+
 <body>
-    <div class="container">
-        <div class="signup-box">
-            <h1>SCMXPertLite</h1>
-            <h2>Create Your Account</h2>
-            <form id="signupForm">
-                <label>Full Name
-                <input type="text" id="fullName" placeholder="Enter your full name" required>
-                </label>
-                <label>Email Address
-                <input type="email" id="email" placeholder="Enter your email address" required>
-                </label>
-                <label>Password
-                <input type="password" id="password" placeholder="Create a password" required>
-                </label>
-                <lable>Confirm Password
-                <input type="password" id="confirmPassword" placeholder="Confirm your password" required>
-                </label>
-                <dev class="g-recaptcha" data-sitekey="6LfraessAAAAAE2-gWKn0FMfHlyEISTY9oXeglaP"></dev>
 
-                <button type="submit" class="signup-btn>">SIGN UP</button>
-            </form>
-        </div>
-        <div class="signin-box">
-            <h2>Welcome back!</h2>
-            <p>Already have an account? Please login with your personal info.</p>
-            <a href="signin.html">
-                <button class="signin-btn">SIGN IN</button></a>
-            </a>
-        </div>
+  <div class="container">
+
+    <div class="left-box">
+      <div class="logo">SCMXPertLite</div>
+      <div class="title">Create Account</div>
+
+      <form id="signupForm">
+        <label>Full Name*
+        <input type="text" id="fullName" placeholder="Enter your full name" />
+        </label>
+        <label>Email Address*
+        <input type="email" id="email" placeholder="Enter your email" />
+        </label>
+        <label>Password*
+        <input type="password" id="password" placeholder="Create password" />
+        </label>
+        <label>Confirm Password*
+        <input type="password" id="confirmPassword" placeholder="Confirm password" />
+        </label>
+        <div class="g-recaptcha" data-sitekey="6LfraessAAAAAE2-gWKn0FMfHlyEISTY9oXeglaP"></div>
+
+        <button type="submit" class="signup-btn">SIGN UP</button>
+      </form>
     </div>
-    <script>
-        const signupForm = document.getElementById('signupForm');
-        signupForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const fullName = document.getElementById('fullName').value.trim();
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;     
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            if (!fullName || !email || !password || !confirmPassword) {
-                alert('Please fill in all fields.');
-                return;
-            }
-            if (fullName ===""){
-                alert('Please enter your full name.');
-                return;
-            }
 
-            if (email ===""){
-                alert('Please enter your email address.');
-                return;
-            }
-            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!email.match(emailPattern   )) {        
-                alert('Please enter a valid email address.');
-                return;
-            }
-            if (password.length <8 ){
-                alert('Password must be at least 8 characters long.');
-                return;
+    <div class="right-box">
+      <div class="right-content">
+        <h2>Welcome back!</h2>
+        <p>Already have an account? Please login with your personal info.</p>
 
-            }
-            const passwordPattern = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/;
-            if (!password.match(passwordPattern)) {
-                alert('Password must contain at least one letter, one number, and one special character.');
-                return;
-            }
+        <button
+          type="button"
+          class="signin-btn"
+          onclick="window.location.href='signin.html'"
+        >
+          SIGN IN
+        </button>
+      </div>
+    </div>
 
-            if (password !== confirmPassword){
-                alert('Passwords do not match. Please try again.');
-                return;
-            }
-            const reCaptchaResponse = grecaptcha.getResponse();
-            if (!reCaptchaResponse) {
-                alert('Please verify Google reCAPTCHA.');
-                return;
-            }
-            const userData = {
-                fullName: fullName,
-                email: email,
-                password: password,
-                confirmPassword: confirmPassword,
-                reCaptchaResponse: reCaptchaResponse
-            };
-            console.log("SignUp Data:", userData);
-                alert('Signup successful! Please check your email to verify your account.');
-                signupForm.reset();
-                grecaptcha.reset();
-        
-        // Later connect this with FastAPI backend
-      /*
+  </div>
+
+  <script>
+    const signupForm = document.getElementById("signupForm");
+
+    signupForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const fullName = document.getElementById("fullName").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const confirmPassword = document.getElementById("confirmPassword").value;
+
+      if (fullName === "") {
+        alert("Please enter full name");
+        return;
+      }
+
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (!email.match(emailPattern)) {
+        alert("Please enter valid email");
+        return;
+      }
+
+      if (password.length < 8) {
+        alert("Password must be minimum 8 characters");
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        alert("Passwords do not match");
+        return;
+      }
+
+      const recaptchaResponse = grecaptcha.getResponse();
+
+      if (recaptchaResponse.length === 0) {
+        alert("Please verify Google reCAPTCHA");
+        return;
+      }
+
+      const signupData = {
+        full_name: fullName,
+        email: email,
+        password: password,
+        recaptcha_token: recaptchaResponse
+      };
+
+      console.log("Signup Data:", signupData);
+
+      alert("Signup Successful");
+
       fetch("http://127.0.0.1:8000/api/auth/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(userData)
+        body: JSON.stringify(signupData)
       })
       .then(response => response.json())
       .then(data => {
         alert("Account created successfully");
-        window.location.href = "login.html";
+        window.location.href = "signin.html";
       })
       .catch(error => {
         console.error(error);
         alert("Signup failed");
       });
-      */
+      
+    });
+  </script>
 
-        });
-    </script>     
 </body>
 </html>
