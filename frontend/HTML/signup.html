@@ -229,20 +229,23 @@
       <div class="logo">SCMXPertLite</div>
       <div class="title">Create Account</div>
 
-      <form id="signupForm">
+      <form id="signupForm" onsubmit="handleSignup(event)">
         <label>Full Name*
-        <input type="text" id="fullName" placeholder="Enter your full name" />
+        <input type="text" id="fullName" placeholder="Enter your full name" required />
         </label>
         <label>Email Address*
-        <input type="email" id="email" placeholder="Enter your email" />
+        <input type="email" id="email" placeholder="Enter your email" required />
+        </label>
+        <label>Phone Number*
+        <input type="tel" id="phone" placeholder="Enter your phone number" required />
         </label>
         <label>Password*
-        <input type="password" id="password" placeholder="Create password" />
+        <input type="password" id="password" placeholder="Create password" required />
         </label>
         <label>Confirm Password*
-        <input type="password" id="confirmPassword" placeholder="Confirm password" />
+        <input type="password" id="confirmPassword" placeholder="Confirm password" required />
         </label>
-        <div class="g-recaptcha" data-sitekey="6LfraessAAAAAE2-gWKn0FMfHlyEISTY9oXeglaP"></div>
+        <!--<div class="g-recaptcha" data-sitekey="6LfraessAAAAAE2-gWKn0FMfHlyEISTY9oXeglaP"></div> >-->
 
         <button type="submit" class="signup-btn">SIGN UP</button>
       </form>
@@ -265,14 +268,14 @@
 
   </div>
 
+  <script src="../js/auth.js"></script>
   <script>
-    const signupForm = document.getElementById("signupForm");
-
-    signupForm.addEventListener("submit", function (e) {
-      e.preventDefault();
+    function handleSignup(event) {
+      event.preventDefault();
 
       const fullName = document.getElementById("fullName").value.trim();
       const email = document.getElementById("email").value.trim();
+      const phone = document.getElementById("phone").value.trim();
       const password = document.getElementById("password").value;
       const confirmPassword = document.getElementById("confirmPassword").value;
 
@@ -288,6 +291,11 @@
         return;
       }
 
+      if (phone === "") {
+        alert("Please enter phone number");
+        return;
+      }
+
       if (password.length < 8) {
         alert("Password must be minimum 8 characters");
         return;
@@ -298,42 +306,16 @@
         return;
       }
 
-      const recaptchaResponse = grecaptcha.getResponse();
-
-      if (recaptchaResponse.length === 0) {
-        alert("Please verify Google reCAPTCHA");
-        return;
-      }
-
-      const signupData = {
-        full_name: fullName,
-        email: email,
-        password: password,
-        recaptcha_token: recaptchaResponse
+      const userData = {
+        fullName,
+        email,
+        phoneNumber: phone,
+        password,
+        confirmPassword
       };
 
-      console.log("Signup Data:", signupData);
-
-      alert("Signup Successful");
-
-      fetch("http://127.0.0.1:8000/api/auth/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(signupData)
-      })
-      .then(response => response.json())
-      .then(data => {
-        alert("Account created successfully");
-        window.location.href = "signin.html";
-      })
-      .catch(error => {
-        console.error(error);
-        alert("Signup failed");
-      });
-      
-    });
+      signup(userData);
+    }
   </script>
 
 </body>

@@ -306,20 +306,20 @@
       <div class="logo">SCMXPertLite</div>
       <div class="title">Sign in now</div>
 
-      <form id="loginForm">
+      <form id="loginForm" onsubmit="handleSignin(event)">
 
-        <label>Email address*</label>
-        <input type="email" id="email" placeholder="Enter your email" />
-
-        <label>Password*</label>
-        <input type="password" id="password" placeholder="Enter your password" />
-
+        <label>Email address*
+        <input type="email" id="email" placeholder="Enter your email" required />
+        </label>
+        <label>Password*
+        <input type="password" id="password" placeholder="Enter your password" required />
+        </label>
         <div class="remember">
           <input type="checkbox" id="remember" />
           <label for="remember">Remember me</label>
         </div>
 
-        <div class="g-recaptcha" data-sitekey="YOUR_SITE_KEY"></div>
+        <!-- <div class="g-recaptcha" data-sitekey="6LfraessAAAAAE2-gWKn0FMfHlyEISTY9oXeglaP"></div> -->
 
         <button type="submit" class="signin-btn">SIGN IN</button>
       </form>
@@ -331,11 +331,10 @@
 
   </div>
 
+  <script src="../js/auth.js"></script>
   <script>
-    const loginForm = document.getElementById("loginForm");
-
-    loginForm.addEventListener("submit", function (e) {
-      e.preventDefault();
+    function handleSignin(event) {
+      event.preventDefault();
 
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
@@ -345,7 +344,7 @@
         return;
       }
 
-      const emailPattern = /^[^ ]+@[^ ]+\.[a-z]{2,3}$/;
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
       if (!email.match(emailPattern)) {
         alert("Please enter valid email");
@@ -362,43 +361,8 @@
         return;
       }
 
-      const recaptchaResponse = grecaptcha.getResponse();
-
-      if (recaptchaResponse.length === 0) {
-        alert("Please verify Google reCAPTCHA");
-        return;
-      }
-
-      const loginData = {
-        email: email,
-        password: password,
-        recaptcha_token: recaptchaResponse
-      };
-
-      console.log("Login Data:", loginData);
-
-      alert("Login Successful");
-
-      /*
-      fetch("http://127.0.0.1:8000/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(loginData)
-      })
-      .then(response => response.json())
-      .then(data => {
-        localStorage.setItem("token", data.access_token);
-        alert("Login Successful");
-        window.location.href = "dashboard.html";
-      })
-      .catch(error => {
-        console.error(error);
-        alert("Login Failed");
-      });
-      */
-    });
+      login(email, password);
+    }
   </script>
 
 </body>
