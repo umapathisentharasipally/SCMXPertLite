@@ -1,3 +1,6 @@
+import logging
+from functools import wraps
+
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from datetime import datetime, timezone
 import uuid
@@ -41,10 +44,30 @@ from back_end.models.auth_models import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
+def handle_route_errors(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.exception("Unhandled error in user auth route")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error"
+            ) from exc
+    return wrapper
+
+
 router = APIRouter(prefix="/api/auth", tags=["User Authentication"])
 
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@handle_route_errors
 async def signup(request: SignupRequest):
     """captcha_valid = await verify_recaptcha_token(request.recaptcha_token)
 
@@ -102,6 +125,7 @@ async def signup(request: SignupRequest):
 
 
 @router.post("/login", response_model=TokenResponse)
+@handle_route_errors
 async def login(request: LoginRequest, fastapi_request: Request):
     db = get_db()
 
@@ -161,6 +185,7 @@ async def login(request: LoginRequest, fastapi_request: Request):
 
 
 @router.get("/me", response_model=UserResponse)
+@handle_route_errors
 async def get_me(current_user: dict = Depends(get_current_user)):
     return UserResponse(
         id=current_user["id"],
@@ -171,6 +196,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 
 
 @router.post("/forgot-password")
+@handle_route_errors
 async def forgot_password(request: ForgotPasswordRequest):
     email = request.email.lower().strip()
 
@@ -191,6 +217,7 @@ async def forgot_password(request: ForgotPasswordRequest):
 
 
 @router.post("/reset-password")
+@handle_route_errors
 async def reset_password(request: ResetPasswordRequest):
     try:
         payload = jwt.decode(

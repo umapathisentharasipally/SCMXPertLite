@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 import fastapi.middleware.cors
 from contextlib import asynccontextmanager
@@ -89,9 +89,21 @@ async def read_health():
 
 # ==================== GLOBAL ERROR HANDLER ====================
 
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    logger.warning(f"HTTP Exception: {exc.detail}")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "detail": exc.detail
+        }
+    )
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled Exception: {str(exc)}")
+    logger.exception("Unhandled Exception")
 
     return JSONResponse(
         status_code=500,

@@ -1,5 +1,6 @@
 import motor
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.errors import ConnectionFailure
 from back_end.config import (
     MONGO_USERNAME, MONGO_PASSWORD, MONGO_CLUSTER_NAME, MONGO_DB_NAME, MONGO_URL,
     COLL_USERS, COLL_SHIPMENTS, COLL_LOGS, COLL_DEVICES
@@ -25,7 +26,7 @@ def get_db():
             password = MONGO_PASSWORD
             cluster = MONGO_CLUSTER_NAME
 
-            if username and password:
+            if username and password and cluster:
                 mongo_url = (
                     f"mongodb+srv://"
                     f"{quote_plus(username)}:"
@@ -35,14 +36,26 @@ def get_db():
             else:
                 mongo_url = "mongodb://localhost:27017"
 
-        client = AsyncIOMotorClient(
-            mongo_url,
-            serverSelectionTimeoutMS=5000,
-            connectTimeoutMS=10000,
-            retryWrites=True,
-            retryReads=True
-        )
-        _db = client[MONGO_DB_NAME]
+        if not MONGO_DB_NAME:
+            raise ValueError("MONGO_DB_NAME environment variable is required")
+
+        try:
+            client = AsyncIOMotorClient(
+                mongo_url,
+                serverSelectionTimeoutMS=5000,
+                connectTimeoutMS=10000,
+                retryWrites=True,
+                retryReads=True
+            )
+            _db = client[MONGO_DB_NAME]
+        except ConnectionFailure as exc:
+            raise ConnectionError(
+                f"Unable to connect to MongoDB at {mongo_url}: {exc}"
+            ) from exc
+        except Exception as exc:
+            raise RuntimeError(
+                f"Database initialization failed: {exc}"
+            ) from exc
     return _db
 
 

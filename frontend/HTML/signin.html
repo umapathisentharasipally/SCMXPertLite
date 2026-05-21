@@ -222,6 +222,17 @@
       accent-color: #f59e0b;
     }
 
+    .form-error {
+      color: #b91c1c;
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+      border-radius: 5px;
+      padding: 12px 16px;
+      margin-bottom: 18px;
+      display: none;
+      font-size: 14px;
+    }
+
     .g-recaptcha {
       transform: scale(0.9);
       transform-origin: left;
@@ -314,6 +325,7 @@
         <label>Password*
         <input type="password" id="password" placeholder="Enter your password" required />
         </label>
+        <div id="signinError" class="form-error" role="alert"></div>
         <div class="remember">
           <input type="checkbox" id="remember" />
           <label for="remember">Remember me</label>
@@ -336,28 +348,30 @@
     function handleSignin(event) {
       event.preventDefault();
 
+      document.getElementById('signinError').style.display = 'none';
+
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
 
       if (email === "") {
-        alert("Please enter email");
+        setFormError('signinError', 'Please enter email');
         return;
       }
 
       const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
       if (!email.match(emailPattern)) {
-        alert("Please enter valid email");
+        setFormError('signinError', 'Please enter valid email');
         return;
       }
 
       if (password === "") {
-        alert("Please enter password");
+        setFormError('signinError', 'Please enter password');
         return;
       }
 
       if (password.length < 6) {
-        alert("Password must be minimum 6 characters");
+        setFormError('signinError', 'Password must be minimum 6 characters');
         return;
       }
 

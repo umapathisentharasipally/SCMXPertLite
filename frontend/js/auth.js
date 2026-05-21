@@ -1,5 +1,21 @@
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
+function setFormError(elementId, message) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.textContent = message;
+        element.style.display = 'block';
+    }
+}
+
+function clearFormError(elementId) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.textContent = '';
+        element.style.display = 'none';
+    }
+}
+
 // Helper function for API calls
 async function apiCall(endpoint, method = 'GET', body = null) {
     const options = {
@@ -25,14 +41,26 @@ async function apiCall(endpoint, method = 'GET', body = null) {
         if (!response.ok) {
             const error = await response.json();
             console.error('Full error response:', error);
-            
-            // Handle validation errors (422)
+
+            let message = 'API Error';
+
             if (response.status === 422 && error.detail && Array.isArray(error.detail)) {
-                const messages = error.detail.map(e => e.msg).join(', ');
-                throw new Error(messages);
+                message = error.detail
+                    .map(e => e.msg || e.message || JSON.stringify(e))
+                    .join(', ');
+            } else if (typeof error.detail === 'string') {
+                message = error.detail;
+            } else if (typeof error.error === 'string') {
+                message = error.error;
+            } else if (typeof error.message === 'string') {
+                message = error.message;
+            } else if (typeof error === 'string') {
+                message = error;
+            } else {
+                message = JSON.stringify(error);
             }
-            
-            throw new Error(error.detail || JSON.stringify(error) || 'API Error');
+
+            throw new Error(message || 'API Error');
         }
         
         return await response.json();
@@ -60,7 +88,7 @@ async function signup(userData) {
         alert('Signup successful!');
         window.location.href = 'dashboard.html';
     } catch (error) {
-        alert('Signup failed: ' + error.message);
+        setFormError('signupError', 'Signup failed: ' + (error.message || 'Unknown error'));
     }
 }
 
@@ -79,7 +107,7 @@ async function login(email, password) {
         alert('Login successful!');
         window.location.href = 'dashboard.html';
     } catch (error) {
-        alert('Login failed: ' + error.message);
+        setFormError('signinError', 'Login failed: ' + (error.message || 'Unknown error'));
     }
 }
 

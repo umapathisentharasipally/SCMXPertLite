@@ -61,34 +61,42 @@ def create_access_token(
 ) -> str:
     """Create JWT access token."""
 
-    now = datetime.now(timezone.utc)
-    expire = now + (expires_delta or timedelta(hours=24))
+    try:
+        now = datetime.now(timezone.utc)
+        expire = now + (expires_delta or timedelta(hours=24))
 
-    payload = data.copy()
-    payload.update({
-        "exp": expire,
-        "iat": now,
-        "iss": JWT_ISSUER,
-        "type": "access"
-    })
+        payload = data.copy()
+        payload.update({
+            "exp": expire,
+            "iat": now,
+            "iss": JWT_ISSUER,
+            "type": "access"
+        })
 
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+        return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    except Exception as exc:
+        logger.exception("Failed to create access token")
+        raise RuntimeError("Unable to create access token") from exc
 
 
 def create_reset_token(email: str) -> str:
     """Create password reset token."""
 
-    now = datetime.now(timezone.utc)
+    try:
+        now = datetime.now(timezone.utc)
 
-    payload = {
-        "sub": email.strip().lower(),
-        "exp": now + timedelta(minutes=15),
-        "iat": now,
-        "iss": JWT_ISSUER,
-        "type": "reset"
-    }
+        payload = {
+            "sub": email.strip().lower(),
+            "exp": now + timedelta(minutes=15),
+            "iat": now,
+            "iss": JWT_ISSUER,
+            "type": "reset"
+        }
 
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+        return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    except Exception as exc:
+        logger.exception("Failed to create reset token")
+        raise RuntimeError("Unable to create reset token") from exc
 
 
 async def verify_recaptcha_token(

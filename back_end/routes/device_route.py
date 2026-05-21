@@ -1,8 +1,30 @@
+import logging
+from functools import wraps
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from back_end.models.device_model import DeviceModel, SensorData
 from back_end.auth.auth_deps import get_current_user
 from back_end.auth.access_control import build_device_query
+
+
+logger = logging.getLogger(__name__)
+
+
+def handle_route_errors(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.exception("Unhandled error in device route")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error"
+            ) from exc
+    return wrapper
 
 
 router = APIRouter(prefix="/api/device", tags=["Device"])
@@ -17,6 +39,7 @@ def super_admin_only(user: dict):
 
 
 @router.post("/sensor_data")
+@handle_route_errors
 async def create_sensor_data(
     payload: SensorData,
     user: dict = Depends(get_current_user)
@@ -42,6 +65,7 @@ async def create_sensor_data(
 
 
 @router.get("/sensor_data")
+@handle_route_errors
 async def get_all_sensor_data(
     user: dict = Depends(get_current_user)
 ):
@@ -58,6 +82,7 @@ async def get_all_sensor_data(
 
 
 @router.get("/{device_id}/latest_sensor_data")
+@handle_route_errors
 async def get_latest_device_sensor_data(
     device_id: int,
     user: dict = Depends(get_current_user)
@@ -83,6 +108,7 @@ async def get_latest_device_sensor_data(
 
 
 @router.get("/{device_id}/sensor_history")
+@handle_route_errors
 async def get_device_sensor_history(
     device_id: int,
     user: dict = Depends(get_current_user)

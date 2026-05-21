@@ -1,3 +1,6 @@
+import logging
+from functools import wraps
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from datetime import datetime, timezone
 import uuid
@@ -23,10 +26,30 @@ from back_end.auth.auth_deps import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
+def handle_route_errors(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.exception("Unhandled error in admin auth route")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error"
+            ) from exc
+    return wrapper
+
+
 router = APIRouter(prefix="/api/auth", tags=["Admin Authentication"])
 
 
 @router.post("/admin/create-user")
+@handle_route_errors
 async def create_user_under_admin(
     full_name: str,
     email: str,
@@ -83,6 +106,7 @@ async def create_user_under_admin(
 
 
 @router.get("/admin/users")
+@handle_route_errors
 async def list_users_under_admin(
     current_user: dict = Depends(get_current_user)
 ):
@@ -116,6 +140,7 @@ async def list_users_under_admin(
 
 
 @router.delete("/admin/users/{user_id}")
+@handle_route_errors
 async def delete_user_under_admin(
     user_id: str,
     current_user: dict = Depends(get_current_user)
@@ -159,6 +184,7 @@ async def delete_user_under_admin(
 
 
 @router.get("/super-admin/users")
+@handle_route_errors
 async def list_all_users(
     role: str = None,
     skip: int = 0,
@@ -195,6 +221,7 @@ async def list_all_users(
 
 
 @router.post("/super-admin/create-admin")
+@handle_route_errors
 async def create_admin(
     full_name: str,
     email: str,
@@ -245,6 +272,7 @@ async def create_admin(
 
 
 @router.patch("/super-admin/users/{user_id}/role")
+@handle_route_errors
 async def update_user_role(
     user_id: str,
     new_role: str,
@@ -292,6 +320,7 @@ async def update_user_role(
 
 
 @router.delete("/super-admin/users/{user_id}")
+@handle_route_errors
 async def delete_user(
     user_id: str,
     current_user: dict = Depends(super_admin_required)

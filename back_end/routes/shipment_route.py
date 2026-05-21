@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+import logging
+from functools import wraps
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, Any
 from datetime import datetime, timezone
 
@@ -13,6 +16,25 @@ from back_end.db.database import (
     delete_one
 )
 from back_end.auth.auth_deps import get_current_user
+
+
+logger = logging.getLogger(__name__)
+
+
+def handle_route_errors(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.exception("Unhandled error in shipment route")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error"
+            ) from exc
+    return wrapper
 
 
 router = APIRouter(prefix="/shipments", tags=["Shipments"])
@@ -49,6 +71,7 @@ async def get_accessible_shipment(shipment_id: str, user: dict):
 
 
 @router.post("/", status_code=201)
+@handle_route_errors
 async def create_shipment(
     shipment: ShipmentCreate,
     user: dict = Depends(get_current_user)
@@ -95,6 +118,7 @@ async def create_shipment(
 
 
 @router.get("/all")
+@handle_route_errors
 async def get_shipments(
     user: dict = Depends(get_current_user)
 ):
@@ -114,6 +138,7 @@ async def get_shipments(
 
 
 @router.get("/mine")
+@handle_route_errors
 async def get_my_shipments(
     user: dict = Depends(get_current_user)
 ):
@@ -134,6 +159,7 @@ async def get_my_shipments(
 
 
 @router.get("/{shipment_id}")
+@handle_route_errors
 async def get_shipment_by_id(
     shipment_id: str,
     user: dict = Depends(get_current_user)
@@ -153,6 +179,7 @@ async def get_shipment_by_id(
 
 
 @router.put("/{shipment_id}")
+@handle_route_errors
 async def update_shipment(
     shipment_id: str,
     updates: ShipmentUpdate,
@@ -201,6 +228,7 @@ async def update_shipment(
 
 
 @router.patch("/{shipment_id}/status")
+@handle_route_errors
 async def update_shipment_status(
     shipment_id: str,
     status_value: str,
@@ -252,6 +280,7 @@ async def update_shipment_status(
 
 
 @router.delete("/{shipment_id}")
+@handle_route_errors
 async def delete_shipment(
     shipment_id: str,
     user: dict = Depends(get_current_user)
